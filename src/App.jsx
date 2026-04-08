@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 
 const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL || "https://joinhomebase.atlassian.net";
 const JIRA_EMAIL    = import.meta.env.VITE_JIRA_EMAIL    || "";
@@ -7,21 +7,9 @@ const JIRA_TOKEN    = import.meta.env.VITE_JIRA_API_TOKEN || "";
 const DEFAULT_JQL =
   'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
 
-// Maps epic names / keywords → display bucket
-const BUCKET_RULES = [
-  { label: "Core UX & Builder",        color: "#6366f1", keywords: ["core schedule", "builder", "schedule builder", "epic 1", "ux regression", "vertical"] },
-  { label: "Mobile",                    color: "#f97316", keywords: ["mobile", "ios", "android", "epic 6"] },
-  { label: "Availability",             color: "#22c55e", keywords: ["availability", "epic 3"] },
-  { label: "Publishing & Workflow",    color: "#3b82f6", keywords: ["publish", "template", "copy week", "epic 4"] },
-  { label: "Shift Marketplace",        color: "#a855f7", keywords: ["marketplace", "open shift", "swap", "epic 5"] },
-  { label: "Multi-Location",           color: "#ec4899", keywords: ["multi-location", "multi location", "cross-location", "epic 7"] },
-  { label: "Permissions & Governance", color: "#f59e0b", keywords: ["permission", "governance", "audit", "epic 8"] },
-  { label: "Insights & Reporting",     color: "#14b8a6", keywords: ["insight", "reporting", "labor cost", "epic 9"] },
-];
-
-function getBucket(ticket) {
+function getBucket(ticket, bucketRules) {
   const haystack = `${ticket.summary} ${ticket.epic || ""}`.toLowerCase();
-  for (const bucket of BUCKET_RULES) {
+  for (const bucket of bucketRules) {
     if (bucket.keywords.some(k => haystack.includes(k))) return bucket.label;
   }
   return "Other";
@@ -140,7 +128,7 @@ function SummaryCard({ label, value, color, sub }) {
   );
 }
 
-function TicketRow({ ticket, isNew }) {
+function TicketRow({ ticket, isNew, bucketRules }) {
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white" }}>
       <td style={{ padding: "10px 12px", width: 100 }}>
@@ -156,7 +144,7 @@ function TicketRow({ ticket, isNew }) {
       <td style={{ padding: "10px 12px", width: 40 }}>
         <div style={{
           width: 10, height: 10, borderRadius: "50%",
-          background: BUCKET_RULES.find(b => b.label === ticket.bucket)?.color || "#e2e8f0",
+          background: bucketRules.find(b => b.label === ticket.bucket)?.color || "#e2e8f0",
           margin: "0 auto"
         }} />
       </td>
@@ -187,6 +175,24 @@ export default function App() {
   const [newKeys, setNewKeys]           = useState(new Set());
   const [showJql, setShowJql]           = useState(false);
   const [periodKey, setPeriodKey]       = useState(DEFAULT_PERIOD);
+  const [bucketRules, setBucketRules]   = useState([]);
+
+  const fetchBuckets = useCallback(async () => {
+    try {
+      const res = await fetch("/api/buckets");
+      if (res.ok) {
+        const data = await res.json();
+        setBucketRules(data);
+        return data;
+      }
+    } catch {
+      // silent — buckets are optional, tickets still load
+    }
+    return bucketRules;
+  }, []);
+
+  // Fetch buckets on mount
+  useEffect(() => { fetchBuckets(); }, []);
 
   const fetchTickets = useCallback(async () => {
     if (!JIRA_EMAIL || !JIRA_TOKEN) {
@@ -196,6 +202,10 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
+      // Refresh buckets on every sync
+      const latestBuckets = await fetchBuckets();
+      const rules = latestBuckets.length ? latestBuckets : bucketRules;
+
       const prevKeys = new Set(tickets.map(t => t.key));
       const params   = new URLSearchParams({
         jql, maxResults: 100,
@@ -217,7 +227,7 @@ export default function App() {
           epic:     issue.fields.customfield_10005 || null,
           updated:  issue.fields.updated,
         };
-        t.bucket = getBucket(t);
+        t.bucket = getBucket(t, rules);
         return t;
       });
       const fresh = new Set(parsed.filter(t => !prevKeys.has(t.key)).map(t => t.key));
@@ -230,7 +240,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [jql, tickets]);
+  }, [jql, tickets, bucketRules, fetchBuckets]);
 
   // Date-filtered tickets
   const period = PERIOD_OPTIONS.find(p => p.key === periodKey);
@@ -244,7 +254,7 @@ export default function App() {
   }, [tickets, periodKey]);
 
   // Build bucket stats from date-filtered tickets
-  const bucketStats = BUCKET_RULES.map(b => {
+  const bucketStats = bucketRules.map(b => {
     const items = dateFiltered.filter(t => t.bucket === b.label);
     return {
       ...b,
@@ -444,7 +454,7 @@ export default function App() {
                 <tbody>
                   {filtered.length === 0
                     ? <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
-                    : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} />)
+                    : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} />)
                   }
                 </tbody>
               </table>
