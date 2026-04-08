@@ -4,15 +4,21 @@ export default async function handler(req, res) {
     `${process.env.VITE_JIRA_EMAIL}:${process.env.VITE_JIRA_API_TOKEN}`
   ).toString("base64");
 
-  const params = new URLSearchParams({
-    jql,
-    maxResults: 100,
-    fields: "summary,status,priority,assignee,updated,customfield_10005",
-  });
-
   const response = await fetch(
-    `${process.env.VITE_JIRA_BASE_URL}/rest/api/3/search?${params}`,
-    { headers: { Authorization: `Basic ${creds}`, Accept: "application/json" } }
+    `${process.env.VITE_JIRA_BASE_URL}/rest/api/3/search/jql`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${creds}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        jql,
+        maxResults: 100,
+        fields: ["summary", "status", "priority", "assignee", "updated", "customfield_10005"],
+      }),
+    }
   );
 
   const data = await response.json();
