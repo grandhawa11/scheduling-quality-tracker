@@ -134,10 +134,7 @@ export default function App() {
         maxResults: 100,
         fields: "summary,status,priority,assignee,updated,customfield_10005",
       });
-      const res = await fetch(
-        `${JIRA_BASE_URL}/rest/api/3/search?${params}`,
-        { headers: { Authorization: `Basic ${creds}`, Accept: "application/json" } }
-      );
+      const res = await fetch(`/api/jira?jql=${encodeURIComponent(jql)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.errorMessages?.join(", ") || `Jira returned ${res.status}`);
