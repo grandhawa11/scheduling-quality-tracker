@@ -249,7 +249,7 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     parts.push(`Upcoming work queued in ${queued[0].label}.`);
   }
 
-  const summary = parts.length > 0 ? parts.join(" ") : `${dateFiltered.length} tickets in this period.`;
+  const summary = parts.length > 0 ? parts : [`${dateFiltered.length} tickets in this period.`];
 
   return { summary, shipped, active, needsDecision };
 }
@@ -382,7 +382,7 @@ export default function App() {
   const missingCreds = !JIRA_EMAIL || !JIRA_TOKEN;
 
   return (
-    <div style={{ fontFamily: "'IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: 24 }}>
+    <div style={{ fontFamily: "'IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: 24, maxWidth: 1200, margin: "0 auto 0 0" }}>
 
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
@@ -526,7 +526,9 @@ export default function App() {
               <p style={{ margin: 0, fontSize: 13, color: "#78716c" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                <p style={{ margin: "0 0 12px", fontSize: 13, color: "#1e293b", lineHeight: 1.6 }}>{weeklyInsights.summary}</p>
+                <ul style={{ margin: "0 0 12px", paddingLeft: 18, fontSize: 13, color: "#1e293b", lineHeight: 1.8 }}>
+                  {weeklyInsights.summary.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {weeklyInsights.shipped.length > 0 && (
                     <div>
