@@ -359,13 +359,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── FRAMING BLURB ── */}
-      <div style={{ background: "white", borderLeft: "3px solid #3b82f6", borderRadius: "0 8px 8px 0", padding: "10px 14px", marginBottom: 20, border: "1px solid #e2e8f0", borderLeftWidth: 3, borderLeftColor: "#3b82f6" }}>
-        <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
-          Scheduling engagement has plateaued at ~50% of eligible locations. The core scheduling workflow has accumulated UX regressions and reliability issues blocking both organic adoption and AI feature trust. This quality program addresses that directly, running in parallel to SBA and Availability Optimization.
-        </p>
-      </div>
-
       {/* ── PERIOD PICKER ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Period:</span>
