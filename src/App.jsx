@@ -586,9 +586,9 @@ export default function App() {
               </div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
-                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, outline: "none", width: 160 }} />
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, outline: "none", width: 160, background: "white", color: "#1e293b" }} />
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white" }}>
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white", color: "#1e293b" }}>
                   {statuses.map(s => <option key={s}>{s}</option>)}
                 </select>
                 <span style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} of {dateFiltered.length}</span>
