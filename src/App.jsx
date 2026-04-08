@@ -1,17 +1,31 @@
 import { useState, useCallback } from "react";
 
-// ---------------------------------------------------------------------------
-// CONFIG — set these in Vercel environment variables
-// VITE_JIRA_BASE_URL   = https://joinhomebase.atlassian.net
-// VITE_JIRA_EMAIL      = your-email@joinhomebase.com
-// VITE_JIRA_API_TOKEN  = your-jira-api-token
-// ---------------------------------------------------------------------------
 const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL || "https://joinhomebase.atlassian.net";
 const JIRA_EMAIL    = import.meta.env.VITE_JIRA_EMAIL    || "";
 const JIRA_TOKEN    = import.meta.env.VITE_JIRA_API_TOKEN || "";
 
 const DEFAULT_JQL =
   'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
+
+// Maps epic names / keywords → display bucket
+const BUCKET_RULES = [
+  { label: "Core UX & Builder",        color: "#6366f1", keywords: ["core schedule", "builder", "schedule builder", "epic 1", "ux regression", "vertical"] },
+  { label: "Mobile",                    color: "#f97316", keywords: ["mobile", "ios", "android", "epic 6"] },
+  { label: "Availability",             color: "#22c55e", keywords: ["availability", "epic 3"] },
+  { label: "Publishing & Workflow",    color: "#3b82f6", keywords: ["publish", "template", "copy week", "epic 4"] },
+  { label: "Shift Marketplace",        color: "#a855f7", keywords: ["marketplace", "open shift", "swap", "epic 5"] },
+  { label: "Multi-Location",           color: "#ec4899", keywords: ["multi-location", "multi location", "cross-location", "epic 7"] },
+  { label: "Permissions & Governance", color: "#f59e0b", keywords: ["permission", "governance", "audit", "epic 8"] },
+  { label: "Insights & Reporting",     color: "#14b8a6", keywords: ["insight", "reporting", "labor cost", "epic 9"] },
+];
+
+function getBucket(ticket) {
+  const haystack = `${ticket.summary} ${ticket.epic || ""}`.toLowerCase();
+  for (const bucket of BUCKET_RULES) {
+    if (bucket.keywords.some(k => haystack.includes(k))) return bucket.label;
+  }
+  return "Other";
+}
 
 const STATUS_CONFIG = {
   "Done":                   { color: "#22c55e", bg: "#f0fdf4", label: "✓ Done" },
@@ -47,63 +61,78 @@ function StatusBadge({ status }) {
 
 function PriorityIcon({ priority }) {
   const cfg = PRIORITY_CONFIG[priority] || { color: "#6b7280", icon: "·" };
+  return <span style={{ color: cfg.color, fontWeight: 700, fontSize: 12 }}>{cfg.icon}</span>;
+}
+
+function BucketCard({ label, color, total, done, inProgress, onClick, active }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   return (
-    <span style={{ color: cfg.color, fontWeight: 700, fontSize: 12, minWidth: 20 }}>
-      {cfg.icon}
-    </span>
+    <div
+      onClick={onClick}
+      style={{
+        background: "white",
+        border: `2px solid ${active ? color : "#e2e8f0"}`,
+        borderRadius: 10, padding: "14px 16px", cursor: "pointer",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+        boxShadow: active ? `0 0 0 3px ${color}22` : "none",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", lineHeight: 1.3, maxWidth: "80%" }}>{label}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color }}>{total}</div>
+      </div>
+      {/* Progress bar */}
+      <div style={{ background: "#f1f5f9", borderRadius: 4, height: 5, marginBottom: 8, overflow: "hidden" }}>
+        <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 4, transition: "width 0.4s" }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b" }}>
+        <span>{pct}% done</span>
+        <span>{inProgress} active</span>
+      </div>
+    </div>
   );
 }
 
 function SummaryCard({ label, value, color, sub }) {
   return (
-    <div style={{
-      background: "white", border: "1px solid #e2e8f0", borderRadius: 10,
-      padding: "16px 20px", display: "flex", flexDirection: "column", gap: 4,
-    }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: "#94a3b8" }}>{sub}</div>}
+    <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 18px" }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 2 }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
 
 function TicketRow({ ticket, isNew }) {
   return (
-    <tr style={{
-      borderBottom: "1px solid #f1f5f9",
-      background: isNew ? "#fefce8" : "white",
-    }}>
+    <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white" }}>
       <td style={{ padding: "10px 12px", width: 100 }}>
-        <a
-          href={`${JIRA_BASE_URL}/browse/${ticket.key}`}
-          target="_blank" rel="noopener noreferrer"
-          style={{ color: "#3b82f6", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "monospace" }}
-        >
+        <a href={`${JIRA_BASE_URL}/browse/${ticket.key}`} target="_blank" rel="noopener noreferrer"
+          style={{ color: "#3b82f6", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "monospace" }}>
           {ticket.key}
         </a>
       </td>
       <td style={{ padding: "10px 12px" }}>
         <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.4 }}>{ticket.summary}</div>
-        {ticket.epic && (
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>{ticket.epic}</div>
-        )}
+        {ticket.epic && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{ticket.epic}</div>}
       </td>
-      <td style={{ padding: "10px 12px", width: 160 }}>
-        <StatusBadge status={ticket.status} />
+      <td style={{ padding: "10px 12px", width: 40 }}>
+        <div style={{
+          width: 10, height: 10, borderRadius: "50%",
+          background: BUCKET_RULES.find(b => b.label === ticket.bucket)?.color || "#e2e8f0",
+          margin: "0 auto"
+        }} />
       </td>
-      <td style={{ padding: "10px 12px", width: 90 }}>
+      <td style={{ padding: "10px 12px", width: 160 }}><StatusBadge status={ticket.status} /></td>
+      <td style={{ padding: "10px 12px", width: 80 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <PriorityIcon priority={ticket.priority} />
           <span style={{ fontSize: 11, color: "#64748b" }}>{ticket.priority}</span>
         </div>
       </td>
-      <td style={{ padding: "10px 12px", width: 110, fontSize: 11, color: "#94a3b8" }}>
-        {ticket.assignee || "—"}
-      </td>
-      <td style={{ padding: "10px 12px", width: 90, fontSize: 11, color: "#94a3b8" }}>
-        {ticket.updated
-          ? new Date(ticket.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-          : "—"}
+      <td style={{ padding: "10px 12px", width: 110, fontSize: 11, color: "#94a3b8" }}>{ticket.assignee || "—"}</td>
+      <td style={{ padding: "10px 12px", width: 80, fontSize: 11, color: "#94a3b8" }}>
+        {ticket.updated ? new Date(ticket.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
       </td>
     </tr>
   );
@@ -116,8 +145,10 @@ export default function App() {
   const [lastFetched, setLastFetched]   = useState(null);
   const [jql, setJql]                   = useState(DEFAULT_JQL);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [filterBucket, setFilterBucket] = useState(null);
   const [search, setSearch]             = useState("");
   const [newKeys, setNewKeys]           = useState(new Set());
+  const [showJql, setShowJql]           = useState(false);
 
   const fetchTickets = useCallback(async () => {
     if (!JIRA_EMAIL || !JIRA_TOKEN) {
@@ -128,27 +159,29 @@ export default function App() {
     setError(null);
     try {
       const prevKeys = new Set(tickets.map(t => t.key));
-      const creds    = btoa(`${JIRA_EMAIL}:${JIRA_TOKEN}`);
       const params   = new URLSearchParams({
-        jql,
-        maxResults: 100,
+        jql, maxResults: 100,
         fields: "summary,status,priority,assignee,updated,customfield_10005",
       });
-      const res = await fetch(`/api/jira?jql=${encodeURIComponent(jql)}`);
+      const res = await fetch(`/api/jira?${params}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.errorMessages?.join(", ") || `Jira returned ${res.status}`);
+        throw new Error(body.errorMessages?.join(", ") || `Error ${res.status}`);
       }
       const data   = await res.json();
-      const parsed = (data.issues || []).map(issue => ({
-        key:      issue.key,
-        summary:  issue.fields.summary,
-        status:   issue.fields.status?.name || "Unknown",
-        priority: issue.fields.priority?.name || "None",
-        assignee: issue.fields.assignee?.displayName || null,
-        epic:     issue.fields.customfield_10005 || null,
-        updated:  issue.fields.updated,
-      }));
+      const parsed = (data.issues || []).map(issue => {
+        const t = {
+          key:      issue.key,
+          summary:  issue.fields.summary,
+          status:   issue.fields.status?.name || "Unknown",
+          priority: issue.fields.priority?.name || "None",
+          assignee: issue.fields.assignee?.displayName || null,
+          epic:     issue.fields.customfield_10005 || null,
+          updated:  issue.fields.updated,
+        };
+        t.bucket = getBucket(t);
+        return t;
+      });
       const fresh = new Set(parsed.filter(t => !prevKeys.has(t.key)).map(t => t.key));
       setNewKeys(fresh);
       setTimeout(() => setNewKeys(new Set()), 10000);
@@ -161,46 +194,67 @@ export default function App() {
     }
   }, [jql, tickets]);
 
-  const statuses = ["All", ...new Set(tickets.map(t => t.status).filter(Boolean))];
+  // Build bucket stats
+  const bucketStats = BUCKET_RULES.map(b => {
+    const items = tickets.filter(t => t.bucket === b.label);
+    return {
+      ...b,
+      total:      items.length,
+      done:       items.filter(t => t.status === "Done").length,
+      inProgress: items.filter(t => ["In Progress", "In Review"].includes(t.status)).length,
+    };
+  }).filter(b => b.total > 0);
+
+  const otherItems = tickets.filter(t => t.bucket === "Other");
+  if (otherItems.length > 0) {
+    bucketStats.push({
+      label: "Other", color: "#94a3b8",
+      total: otherItems.length,
+      done: otherItems.filter(t => t.status === "Done").length,
+      inProgress: otherItems.filter(t => ["In Progress","In Review"].includes(t.status)).length,
+    });
+  }
+
+  const statuses    = ["All", ...new Set(tickets.map(t => t.status).filter(Boolean))];
+  const doneCount   = tickets.filter(t => t.status === "Done").length;
+  const activeCount = tickets.filter(t => ["In Progress","In Review"].includes(t.status)).length;
+  const blockedCount = tickets.filter(t => t.status === "Investigation Required").length;
+
   const filtered = tickets.filter(t => {
     const matchStatus = filterStatus === "All" || t.status === filterStatus;
+    const matchBucket = !filterBucket || t.bucket === filterBucket;
     const matchSearch = !search ||
       t.summary.toLowerCase().includes(search.toLowerCase()) ||
       t.key.toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchSearch;
+    return matchStatus && matchBucket && matchSearch;
   });
 
-  const doneCount       = tickets.filter(t => t.status === "Done").length;
-  const inProgressCount = tickets.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
-  const backlogCount    = tickets.filter(t => ["Backlog", "To Do", "Investigation Required"].includes(t.status)).length;
-  const missingCreds    = !JIRA_EMAIL || !JIRA_TOKEN;
+  const missingCreds = !JIRA_EMAIL || !JIRA_TOKEN;
 
   return (
     <div style={{ fontFamily: "'IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: 24 }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>QUALITY TRACKER</div>
-            </div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality Work Dashboard</h1>
-            {lastFetched && (
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-                Last synced: {lastFetched.toLocaleTimeString()} · {tickets.length} tickets
-              </div>
-            )}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>QUALITY TRACKER</div>
           </div>
-          <button
-            onClick={fetchTickets} disabled={loading}
-            style={{
-              background: loading ? "#e2e8f0" : "#1e293b", color: loading ? "#94a3b8" : "white",
-              border: "none", borderRadius: 8, padding: "10px 20px",
-              fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality Work Dashboard</h1>
+          {lastFetched && (
+            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+              Last synced: {lastFetched.toLocaleTimeString()} · {tickets.length} tickets across {bucketStats.length} areas
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button onClick={() => setShowJql(v => !v)}
+            style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#64748b" }}>
+            {showJql ? "Hide JQL" : "Edit JQL"}
+          </button>
+          <button onClick={fetchTickets} disabled={loading}
+            style={{ background: loading ? "#e2e8f0" : "#1e293b", color: loading ? "#94a3b8" : "white", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
             {loading ? "Syncing…" : "⟳ Sync from Jira"}
           </button>
         </div>
@@ -209,7 +263,7 @@ export default function App() {
       {/* Creds warning */}
       {missingCreds && (
         <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#92400e" }}>
-          <strong>Setup required.</strong> Add these in Vercel → Settings → Environment Variables:
+          <strong>Setup required.</strong> Add in Vercel → Settings → Environment Variables:
           <ul style={{ margin: "8px 0 0", paddingLeft: 20, lineHeight: 1.9 }}>
             <li><code>VITE_JIRA_BASE_URL</code> = <code>https://joinhomebase.atlassian.net</code></li>
             <li><code>VITE_JIRA_EMAIL</code> = your Atlassian login email</li>
@@ -218,25 +272,20 @@ export default function App() {
         </div>
       )}
 
-      {/* JQL editor */}
-      <div style={{ background: "#1e293b", borderRadius: 10, padding: 16, marginBottom: 20 }}>
-        <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 8, letterSpacing: "0.05em" }}>JQL QUERY</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <input
-            value={jql} onChange={e => setJql(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && fetchTickets()}
-            style={{ flex: 1, background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", color: "#94a3b8", fontSize: 12, fontFamily: "monospace", outline: "none" }}
-          />
-          <button onClick={fetchTickets} disabled={loading}
-            style={{ background: "#3b82f6", color: "white", border: "none", borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
-            Run
-          </button>
+      {/* JQL editor (collapsible) */}
+      {showJql && (
+        <div style={{ background: "#1e293b", borderRadius: 10, padding: 16, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 8, letterSpacing: "0.05em" }}>JQL QUERY</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <input value={jql} onChange={e => setJql(e.target.value)} onKeyDown={e => e.key === "Enter" && fetchTickets()}
+              style={{ flex: 1, background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", color: "#94a3b8", fontSize: 12, fontFamily: "monospace", outline: "none" }} />
+            <button onClick={fetchTickets} disabled={loading}
+              style={{ background: "#3b82f6", color: "white", border: "none", borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              Run
+            </button>
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: "#475569", marginTop: 8 }}>
-          Add <code style={{ color: "#7dd3fc" }}>AND status = Done</code> for shipped only ·{" "}
-          <code style={{ color: "#7dd3fc" }}>AND sprint in openSprints()</code> for current sprint
-        </div>
-      </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -245,58 +294,88 @@ export default function App() {
         </div>
       )}
 
-      {/* Summary cards */}
-      {tickets.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginBottom: 20 }}>
-          <SummaryCard label="Total Tickets"        value={tickets.length}  color="#0f172a" />
-          <SummaryCard label="Shipped / Done"       value={doneCount}       color="#22c55e" sub={`${Math.round(doneCount/tickets.length*100)}% complete`} />
-          <SummaryCard label="In Progress / Review" value={inProgressCount} color="#3b82f6" />
-          <SummaryCard label="Backlog / Investing"  value={backlogCount}    color="#f59e0b" />
-          {newKeys.size > 0 && <SummaryCard label="New This Sync" value={newKeys.size} color="#a855f7" sub="Highlighted in yellow" />}
-        </div>
-      )}
-
       {/* Empty state */}
       {!loading && tickets.length === 0 && !error && (
         <div style={{ background: "white", border: "2px dashed #e2e8f0", borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
           <div style={{ fontSize: 16, fontWeight: 600, color: "#374151", marginBottom: 8 }}>No tickets loaded yet</div>
-          <div style={{ fontSize: 13, color: "#94a3b8", maxWidth: 420, margin: "0 auto" }}>
-            Add your Jira credentials as Vercel env vars, then hit "Sync from Jira".
-          </div>
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>Add your Jira credentials as Vercel env vars, then hit "Sync from Jira".</div>
         </div>
       )}
 
-      {/* Table */}
       {tickets.length > 0 && (
-        <div style={{ background: "white", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tickets…"
-              style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "6px 12px", fontSize: 13, outline: "none", width: 200 }} />
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-              style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "6px 10px", fontSize: 13, outline: "none", background: "white" }}>
-              {statuses.map(s => <option key={s}>{s}</option>)}
-            </select>
-            <span style={{ fontSize: 12, color: "#94a3b8", marginLeft: "auto" }}>{filtered.length} of {tickets.length} tickets</span>
+        <>
+          {/* ── SECTION 1: SUMMARY STATS ── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
+            <SummaryCard label="Total Tickets"        value={tickets.length}  color="#0f172a" />
+            <SummaryCard label="Shipped / Done"       value={doneCount}       color="#22c55e" sub={`${Math.round(doneCount/tickets.length*100)}% complete`} />
+            <SummaryCard label="In Progress"          value={activeCount}     color="#3b82f6" />
+            <SummaryCard label="Needs Investigation"  value={blockedCount}    color="#f59e0b" />
+            {newKeys.size > 0 && <SummaryCard label="New This Sync" value={newKeys.size} color="#a855f7" sub="Highlighted below" />}
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                  {["Ticket","Summary / Epic","Status","Priority","Assignee","Updated"].map(h => (
-                    <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0
-                  ? <tr><td colSpan={6} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
-                  : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} />)
-                }
-              </tbody>
-            </table>
+
+          {/* ── SECTION 2: BUCKET BREAKDOWN ── */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Quality Areas</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Click a card to filter the ticket table below</div>
+              </div>
+              {filterBucket && (
+                <button onClick={() => setFilterBucket(null)}
+                  style={{ fontSize: 12, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                  ✕ Clear filter
+                </button>
+              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12 }}>
+              {bucketStats.map(b => (
+                <BucketCard
+                  key={b.label}
+                  {...b}
+                  active={filterBucket === b.label}
+                  onClick={() => setFilterBucket(filterBucket === b.label ? null : b.label)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+
+          {/* ── SECTION 3: TICKET TABLE ── */}
+          <div style={{ background: "white", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                All Tickets
+                {filterBucket && <span style={{ fontSize: 12, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>— {filterBucket}</span>}
+              </div>
+              <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, outline: "none", width: 160 }} />
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white" }}>
+                  {statuses.map(s => <option key={s}>{s}</option>)}
+                </select>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} of {tickets.length}</span>
+              </div>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                    {["Ticket","Summary / Epic","Area","Status","Priority","Assignee","Updated"].map(h => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0
+                    ? <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
+                    : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} />)
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

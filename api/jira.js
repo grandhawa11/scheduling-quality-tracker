@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  const { jql } = req.query;
+  const { jql, maxResults, fields } = req.query;
   const creds = Buffer.from(
     `${process.env.VITE_JIRA_EMAIL}:${process.env.VITE_JIRA_API_TOKEN}`
   ).toString("base64");
@@ -15,8 +15,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         jql,
-        maxResults: 100,
-        fields: ["summary", "status", "priority", "assignee", "updated", "customfield_10005"],
+        maxResults: Number(maxResults) || 100,
+        fields: fields ? fields.split(",") : [],
       }),
     }
   );
