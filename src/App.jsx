@@ -205,6 +205,55 @@ function TicketRow({ ticket, isNew, bucketRules }) {
   );
 }
 
+function truncate(str, max = 60) {
+  return str.length > max ? str.slice(0, max) + "…" : str;
+}
+
+function generateWeeklyInsights(dateFiltered, bucketStats, period) {
+  if (!dateFiltered.length) return null;
+
+  const byUpdated = (a, b) => new Date(b.updated) - new Date(a.updated);
+
+  const shipped = dateFiltered
+    .filter(t => t.status === "Done")
+    .sort(byUpdated)
+    .slice(0, 5)
+    .map(t => ({ key: t.key, summary: truncate(t.summary) }));
+
+  const active = dateFiltered
+    .filter(t => ["In Progress", "In Review"].includes(t.status))
+    .sort(byUpdated)
+    .slice(0, 5)
+    .map(t => ({ key: t.key, summary: truncate(t.summary) }));
+
+  const needsDecision = dateFiltered
+    .filter(t => t.status === "Investigation Required")
+    .map(t => ({ key: t.key, summary: truncate(t.summary) }));
+
+  // Build summary sentence
+  const parts = [];
+  const topDone = [...bucketStats].sort((a, b) => b.done - a.done).filter(b => b.done > 0);
+  if (topDone.length >= 2) {
+    parts.push(`Good progress in ${topDone[0].label} and ${topDone[1].label} this period.`);
+  } else if (topDone.length === 1) {
+    parts.push(`Good progress in ${topDone[0].label} this period.`);
+  }
+
+  const topActive = [...bucketStats].sort((a, b) => b.inProgress - a.inProgress).filter(b => b.inProgress > 0);
+  if (topActive.length > 0) {
+    parts.push(`Active work underway in ${topActive[0].label}.`);
+  }
+
+  const queued = bucketStats.filter(b => b.done === 0 && b.inProgress === 0 && b.total > 0);
+  if (queued.length > 0) {
+    parts.push(`Upcoming work queued in ${queued[0].label}.`);
+  }
+
+  const summary = parts.length > 0 ? parts.join(" ") : `${dateFiltered.length} tickets in this period.`;
+
+  return { summary, shipped, active, needsDecision };
+}
+
 // ── MAIN ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -318,6 +367,8 @@ export default function App() {
   const doneCount    = dateFiltered.filter(t => t.status === "Done").length;
   const activeCount  = dateFiltered.filter(t => ["In Progress","In Review"].includes(t.status)).length;
   const blockedCount = dateFiltered.filter(t => t.status === "Investigation Required").length;
+
+  const weeklyInsights = useMemo(() => generateWeeklyInsights(dateFiltered, bucketStats, period), [dateFiltered, bucketStats, period]);
 
   const filtered = dateFiltered.filter(t => {
     const matchStatus = filterStatus === "All" || t.status === filterStatus;
@@ -465,27 +516,63 @@ export default function App() {
             </div>
           </div>
 
-          {/* ── SECTION 3: WEEKLY UPDATE ── */}
+          {/* ── SECTION 3: PERIOD SUMMARY ── */}
           <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 10, padding: "14px 16px", marginBottom: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#92400e", textTransform: "uppercase" }}>Weekly update</span>
-              <span style={{ fontSize: 11, color: "#78716c" }}>
-                {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-              </span>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#92400e", textTransform: "uppercase" }}>Period summary</span>
+              <span style={{ fontSize: 11, color: "#78716c" }}>{period?.label || "All Time"}</span>
             </div>
-            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#1e293b", lineHeight: 1.6 }}>
-              Update this section each Monday with what shipped, what moved, and any decisions needed from Rachel. Keep it to 3–4 sentences max — this replaces the status update in squad review.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", minWidth: 100, paddingTop: 1 }}>Shipped</span>
-                <span style={{ color: "#374151", lineHeight: 1.5 }}>—</span>
-              </div>
-              <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", minWidth: 100, paddingTop: 1 }}>Needs decision</span>
-                <span style={{ color: "#374151", lineHeight: 1.5 }}>—</span>
-              </div>
-            </div>
+            {!weeklyInsights ? (
+              <p style={{ margin: 0, fontSize: 13, color: "#78716c" }}>Sync from Jira to generate insights.</p>
+            ) : (
+              <>
+                <p style={{ margin: "0 0 12px", fontSize: 13, color: "#1e293b", lineHeight: 1.6 }}>{weeklyInsights.summary}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {weeklyInsights.shipped.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 6 }}>Shipped</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {weeklyInsights.shipped.map(t => (
+                          <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4 }}>
+                            <span style={{ fontWeight: 700, color: "#22c55e", fontFamily: "monospace" }}>{t.key}</span>
+                            <span style={{ color: "#374151" }}>{t.summary}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {weeklyInsights.active.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 6 }}>In progress</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {weeklyInsights.active.map(t => (
+                          <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4 }}>
+                            <span style={{ fontWeight: 700, color: "#3b82f6", fontFamily: "monospace" }}>{t.key}</span>
+                            <span style={{ color: "#374151" }}>{t.summary}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {weeklyInsights.needsDecision.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 6 }}>Needs investigation</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {weeklyInsights.needsDecision.map(t => (
+                          <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4 }}>
+                            <span style={{ fontWeight: 700, color: "#f59e0b", fontFamily: "monospace" }}>{t.key}</span>
+                            <span style={{ color: "#374151" }}>{t.summary}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* ── SECTION 4: TICKET TABLE ── */}
