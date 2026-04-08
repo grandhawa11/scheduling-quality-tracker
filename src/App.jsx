@@ -391,7 +391,7 @@ export default function App() {
             <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
             <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>QUALITY TRACKER</div>
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality work dashboard</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality Work Dashboard</h1>
           {lastFetched && (
             <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
               Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} · {bucketStats.length} areas · Sheet updated each cycle
@@ -494,7 +494,7 @@ export default function App() {
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Quality areas</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Quality Areas</div>
                 <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout</div>
               </div>
               {filterBucket && (
