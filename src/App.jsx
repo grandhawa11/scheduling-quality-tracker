@@ -526,7 +526,7 @@ export default function App() {
               <p style={{ margin: 0, fontSize: 13, color: "#78716c" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                <ul style={{ margin: "0 0 12px", paddingLeft: 18, fontSize: 13, color: "#1e293b", lineHeight: 1.8 }}>
+                <ul style={{ margin: "0 0 12px", paddingLeft: 18, fontSize: 13, color: "#1e293b", lineHeight: 1.8, textAlign: "left" }}>
                   {weeklyInsights.summary.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
