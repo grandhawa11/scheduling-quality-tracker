@@ -38,7 +38,6 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 function buildPeriodOptions() {
   const now = new Date();
   const opts = [{ key: "all", label: "All Time" }];
-  // Individual months — last 12
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const y = d.getFullYear();
@@ -50,7 +49,6 @@ function buildPeriodOptions() {
       end: new Date(y, m + 1, 0, 23, 59, 59, 999),
     });
   }
-  // Quarters
   for (const y of [now.getFullYear(), now.getFullYear() - 1]) {
     for (let q = 3; q >= 0; q--) {
       const sm = q * 3;
@@ -68,7 +66,9 @@ function buildPeriodOptions() {
 }
 
 const PERIOD_OPTIONS = buildPeriodOptions();
-const DEFAULT_PERIOD = PERIOD_OPTIONS[1]?.key || "all"; // current month
+const DEFAULT_PERIOD = PERIOD_OPTIONS[1]?.key || "all";
+
+// ── COMPONENTS ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] || { color: "#6b7280", bg: "#f9fafb", label: status };
@@ -89,41 +89,83 @@ function PriorityIcon({ priority }) {
   return <span style={{ color: cfg.color, fontWeight: 700, fontSize: 12 }}>{cfg.icon}</span>;
 }
 
-function BucketCard({ label, color, total, done, inProgress, onClick, active }) {
-  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        background: "white",
-        border: `2px solid ${active ? color : "#e2e8f0"}`,
-        borderRadius: 10, padding: "14px 16px", cursor: "pointer",
-        transition: "border-color 0.15s, box-shadow 0.15s",
-        boxShadow: active ? `0 0 0 3px ${color}22` : "none",
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", lineHeight: 1.3, maxWidth: "80%" }}>{label}</div>
-        <div style={{ fontSize: 20, fontWeight: 800, color }}>{total}</div>
-      </div>
-      {/* Progress bar */}
-      <div style={{ background: "#f1f5f9", borderRadius: 4, height: 5, marginBottom: 8, overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 4, transition: "width 0.4s" }} />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b" }}>
-        <span>{pct}% done</span>
-        <span>{inProgress} active</span>
-      </div>
-    </div>
-  );
-}
-
 function SummaryCard({ label, value, color, sub }) {
   return (
     <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 18px" }}>
       <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
       <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 2 }}>{label}</div>
       {sub && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function BucketCard({ label, color, total, done, inProgress, onClick, active, problem, what_we_are_doing, why_now }) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const hasDetail = problem || what_we_are_doing || why_now;
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "white",
+        border: `1px solid ${active ? color : "#e2e8f0"}`,
+        borderRadius: 10,
+        cursor: "pointer",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+        boxShadow: active ? `0 0 0 3px ${color}22` : "none",
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
+      {/* Accent bar */}
+      <div style={{ height: 3, background: color, width: "100%" }} />
+
+      <div style={{ padding: "12px 14px" }}>
+        {/* Top row: label + count */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", lineHeight: 1.3, maxWidth: "76%", paddingRight: 4 }}>{label}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color, flexShrink: 0 }}>{total}</div>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{ background: "#f1f5f9", borderRadius: 4, height: 4, marginBottom: 8, overflow: "hidden" }}>
+          <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 4, transition: "width 0.4s" }} />
+        </div>
+
+        {/* Stats row */}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b" }}>
+          <span>{pct}% done</span>
+          <span>{inProgress} active</span>
+        </div>
+
+        {/* Expandable detail */}
+        {active && hasDetail && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${color}22` }}>
+            {problem && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Problem</div>
+                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{problem}</div>
+              </div>
+            )}
+            {what_we_are_doing && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>What we're doing</div>
+                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{what_we_are_doing}</div>
+              </div>
+            )}
+            {why_now && (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Why now</div>
+                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{why_now}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Expand hint */}
+        {!active && hasDetail && (
+          <div style={{ marginTop: 8, fontSize: 11, color: color, fontWeight: 500, opacity: 0.7 }}>Click to expand ↓</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -143,9 +185,9 @@ function TicketRow({ ticket, isNew, bucketRules }) {
       </td>
       <td style={{ padding: "10px 12px", width: 40 }}>
         <div style={{
-          width: 10, height: 10, borderRadius: "50%",
+          width: 8, height: 8, borderRadius: "50%",
           background: bucketRules.find(b => b.label === ticket.bucket)?.color || "#e2e8f0",
-          margin: "0 auto"
+          margin: "0 auto",
         }} />
       </td>
       <td style={{ padding: "10px 12px", width: 160 }}><StatusBadge status={ticket.status} /></td>
@@ -162,6 +204,8 @@ function TicketRow({ ticket, isNew, bucketRules }) {
     </tr>
   );
 }
+
+// ── MAIN ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [tickets, setTickets]           = useState([]);
@@ -186,12 +230,11 @@ export default function App() {
         return data;
       }
     } catch {
-      // silent — buckets are optional, tickets still load
+      // silent — buckets are optional
     }
     return bucketRules;
   }, []);
 
-  // Fetch buckets on mount
   useEffect(() => { fetchBuckets(); }, []);
 
   const fetchTickets = useCallback(async () => {
@@ -202,7 +245,6 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      // Refresh buckets on every sync
       const latestBuckets = await fetchBuckets();
       const rules = latestBuckets.length ? latestBuckets : bucketRules;
 
@@ -242,7 +284,6 @@ export default function App() {
     }
   }, [jql, tickets, bucketRules, fetchBuckets]);
 
-  // Date-filtered tickets
   const period = PERIOD_OPTIONS.find(p => p.key === periodKey);
   const dateFiltered = useMemo(() => {
     if (!period || periodKey === "all") return tickets;
@@ -253,7 +294,6 @@ export default function App() {
     });
   }, [tickets, periodKey]);
 
-  // Build bucket stats from date-filtered tickets
   const bucketStats = bucketRules.map(b => {
     const items = dateFiltered.filter(t => t.bucket === b.label);
     return {
@@ -267,7 +307,7 @@ export default function App() {
   const otherItems = dateFiltered.filter(t => t.bucket === "Other");
   if (otherItems.length > 0) {
     bucketStats.push({
-      label: "Other", color: "#94a3b8",
+      label: "Other", color: "#94a3b8", keywords: [], problem: "", what_we_are_doing: "", why_now: "",
       total: otherItems.length,
       done: otherItems.filter(t => t.status === "Done").length,
       inProgress: otherItems.filter(t => ["In Progress","In Review"].includes(t.status)).length,
@@ -293,17 +333,17 @@ export default function App() {
   return (
     <div style={{ fontFamily: "'IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: 24 }}>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+      {/* ── HEADER ── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
+            <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
             <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>QUALITY TRACKER</div>
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality Work Dashboard</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality work dashboard</h1>
           {lastFetched && (
             <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-              Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} across {bucketStats.length} areas
+              Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} · {bucketStats.length} areas · Sheet updated each cycle
             </div>
           )}
         </div>
@@ -319,9 +359,16 @@ export default function App() {
         </div>
       </div>
 
-      {/* Period picker */}
+      {/* ── FRAMING BLURB ── */}
+      <div style={{ background: "white", borderLeft: "3px solid #3b82f6", borderRadius: "0 8px 8px 0", padding: "10px 14px", marginBottom: 20, border: "1px solid #e2e8f0", borderLeftWidth: 3, borderLeftColor: "#3b82f6" }}>
+        <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
+          Scheduling engagement has plateaued at ~50% of eligible locations. The core scheduling workflow has accumulated UX regressions and reliability issues blocking both organic adoption and AI feature trust. This quality program addresses that directly, running in parallel to SBA and Availability Optimization.
+        </p>
+      </div>
+
+      {/* ── PERIOD PICKER ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Month:</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Period:</span>
         {PERIOD_OPTIONS.slice(0, 13).map(p => (
           <button key={p.key} onClick={() => setPeriodKey(p.key)}
             style={{
@@ -345,7 +392,7 @@ export default function App() {
         </select>
       </div>
 
-      {/* Creds warning */}
+      {/* ── CREDS WARNING ── */}
       {missingCreds && (
         <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#92400e" }}>
           <strong>Setup required.</strong> Add in Vercel → Settings → Environment Variables:
@@ -357,7 +404,7 @@ export default function App() {
         </div>
       )}
 
-      {/* JQL editor (collapsible) */}
+      {/* ── JQL EDITOR ── */}
       {showJql && (
         <div style={{ background: "#1e293b", borderRadius: 10, padding: 16, marginBottom: 20 }}>
           <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 8, letterSpacing: "0.05em" }}>JQL QUERY</div>
@@ -372,14 +419,14 @@ export default function App() {
         </div>
       )}
 
-      {/* Error */}
+      {/* ── ERROR ── */}
       {error && (
         <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#dc2626" }}>
           <strong>Error:</strong> {error}
         </div>
       )}
 
-      {/* Empty state */}
+      {/* ── EMPTY STATE ── */}
       {!loading && tickets.length === 0 && !error && (
         <div style={{ background: "white", border: "2px dashed #e2e8f0", borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
@@ -392,19 +439,19 @@ export default function App() {
         <>
           {/* ── SECTION 1: SUMMARY STATS ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
-            <SummaryCard label="Total Tickets"        value={dateFiltered.length}  color="#0f172a" />
-            <SummaryCard label="Shipped / Done"       value={doneCount}       color="#22c55e" sub={dateFiltered.length ? `${Math.round(doneCount/dateFiltered.length*100)}% complete` : "—"} />
-            <SummaryCard label="In Progress"          value={activeCount}     color="#3b82f6" />
-            <SummaryCard label="Needs Investigation"  value={blockedCount}    color="#f59e0b" />
-            {newKeys.size > 0 && <SummaryCard label="New This Sync" value={newKeys.size} color="#a855f7" sub="Highlighted below" />}
+            <SummaryCard label="Total tickets"        value={dateFiltered.length} color="#0f172a" />
+            <SummaryCard label="Shipped / done"       value={doneCount}           color="#22c55e" sub={dateFiltered.length ? `${Math.round(doneCount/dateFiltered.length*100)}% complete` : "—"} />
+            <SummaryCard label="In progress"          value={activeCount}         color="#3b82f6" />
+            <SummaryCard label="Needs investigation"  value={blockedCount}        color="#f59e0b" />
+            {newKeys.size > 0 && <SummaryCard label="New this sync" value={newKeys.size} color="#a855f7" sub="Highlighted below" />}
           </div>
 
-          {/* ── SECTION 2: BUCKET BREAKDOWN ── */}
+          {/* ── SECTION 2: BUCKET CARDS ── */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>Quality Areas</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Click a card to filter the ticket table below</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Quality areas</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout</div>
               </div>
               {filterBucket && (
                 <button onClick={() => setFilterBucket(null)}
@@ -413,7 +460,7 @@ export default function App() {
                 </button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
               {bucketStats.map(b => (
                 <BucketCard
                   key={b.label}
@@ -425,11 +472,34 @@ export default function App() {
             </div>
           </div>
 
-          {/* ── SECTION 3: TICKET TABLE ── */}
+          {/* ── SECTION 3: WEEKLY UPDATE ── */}
+          <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 10, padding: "14px 16px", marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#92400e", textTransform: "uppercase" }}>Weekly update</span>
+              <span style={{ fontSize: 11, color: "#78716c" }}>
+                {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+              </span>
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#1e293b", lineHeight: 1.6 }}>
+              Update this section each Monday with what shipped, what moved, and any decisions needed from Rachel. Keep it to 3–4 sentences max — this replaces the status update in squad review.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", minWidth: 100, paddingTop: 1 }}>Shipped</span>
+                <span style={{ color: "#374151", lineHeight: 1.5 }}>—</span>
+              </div>
+              <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", minWidth: 100, paddingTop: 1 }}>Needs decision</span>
+                <span style={{ color: "#374151", lineHeight: 1.5 }}>—</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── SECTION 4: TICKET TABLE ── */}
           <div style={{ background: "white", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                All Tickets
+                All tickets
                 {filterBucket && <span style={{ fontSize: 12, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>— {filterBucket}</span>}
               </div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
