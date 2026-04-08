@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL || "https://joinhomebase.atlassian.net";
 const JIRA_EMAIL    = import.meta.env.VITE_JIRA_EMAIL    || "";
@@ -44,6 +44,43 @@ const PRIORITY_CONFIG = {
   Low:     { color: "#6b7280", icon: "↓"  },
   Lowest:  { color: "#9ca3af", icon: "↓↓" },
 };
+
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function buildPeriodOptions() {
+  const now = new Date();
+  const opts = [{ key: "all", label: "All Time" }];
+  // Individual months — last 12
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    opts.push({
+      key: `${y}-${String(m + 1).padStart(2, "0")}`,
+      label: `${MONTH_NAMES[m]}${y !== now.getFullYear() ? " " + y : ""}`,
+      start: new Date(y, m, 1),
+      end: new Date(y, m + 1, 0, 23, 59, 59, 999),
+    });
+  }
+  // Quarters
+  for (const y of [now.getFullYear(), now.getFullYear() - 1]) {
+    for (let q = 3; q >= 0; q--) {
+      const sm = q * 3;
+      const start = new Date(y, sm, 1);
+      if (start > now) continue;
+      opts.push({
+        key: `Q${q + 1}-${y}`,
+        label: `Q${q + 1} ${y} (${MONTH_NAMES[sm]}–${MONTH_NAMES[sm + 2]})`,
+        start,
+        end: new Date(y, sm + 3, 0, 23, 59, 59, 999),
+      });
+    }
+  }
+  return opts;
+}
+
+const PERIOD_OPTIONS = buildPeriodOptions();
+const DEFAULT_PERIOD = PERIOD_OPTIONS[1]?.key || "all"; // current month
 
 function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] || { color: "#6b7280", bg: "#f9fafb", label: status };
@@ -149,6 +186,7 @@ export default function App() {
   const [search, setSearch]             = useState("");
   const [newKeys, setNewKeys]           = useState(new Set());
   const [showJql, setShowJql]           = useState(false);
+  const [periodKey, setPeriodKey]       = useState(DEFAULT_PERIOD);
 
   const fetchTickets = useCallback(async () => {
     if (!JIRA_EMAIL || !JIRA_TOKEN) {
@@ -194,9 +232,20 @@ export default function App() {
     }
   }, [jql, tickets]);
 
-  // Build bucket stats
+  // Date-filtered tickets
+  const period = PERIOD_OPTIONS.find(p => p.key === periodKey);
+  const dateFiltered = useMemo(() => {
+    if (!period || periodKey === "all") return tickets;
+    return tickets.filter(t => {
+      if (!t.updated) return false;
+      const d = new Date(t.updated);
+      return d >= period.start && d <= period.end;
+    });
+  }, [tickets, periodKey]);
+
+  // Build bucket stats from date-filtered tickets
   const bucketStats = BUCKET_RULES.map(b => {
-    const items = tickets.filter(t => t.bucket === b.label);
+    const items = dateFiltered.filter(t => t.bucket === b.label);
     return {
       ...b,
       total:      items.length,
@@ -205,7 +254,7 @@ export default function App() {
     };
   }).filter(b => b.total > 0);
 
-  const otherItems = tickets.filter(t => t.bucket === "Other");
+  const otherItems = dateFiltered.filter(t => t.bucket === "Other");
   if (otherItems.length > 0) {
     bucketStats.push({
       label: "Other", color: "#94a3b8",
@@ -215,12 +264,12 @@ export default function App() {
     });
   }
 
-  const statuses    = ["All", ...new Set(tickets.map(t => t.status).filter(Boolean))];
-  const doneCount   = tickets.filter(t => t.status === "Done").length;
-  const activeCount = tickets.filter(t => ["In Progress","In Review"].includes(t.status)).length;
-  const blockedCount = tickets.filter(t => t.status === "Investigation Required").length;
+  const statuses     = ["All", ...new Set(dateFiltered.map(t => t.status).filter(Boolean))];
+  const doneCount    = dateFiltered.filter(t => t.status === "Done").length;
+  const activeCount  = dateFiltered.filter(t => ["In Progress","In Review"].includes(t.status)).length;
+  const blockedCount = dateFiltered.filter(t => t.status === "Investigation Required").length;
 
-  const filtered = tickets.filter(t => {
+  const filtered = dateFiltered.filter(t => {
     const matchStatus = filterStatus === "All" || t.status === filterStatus;
     const matchBucket = !filterBucket || t.bucket === filterBucket;
     const matchSearch = !search ||
@@ -244,7 +293,7 @@ export default function App() {
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality Work Dashboard</h1>
           {lastFetched && (
             <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
-              Last synced: {lastFetched.toLocaleTimeString()} · {tickets.length} tickets across {bucketStats.length} areas
+              Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} across {bucketStats.length} areas
             </div>
           )}
         </div>
@@ -258,6 +307,32 @@ export default function App() {
             {loading ? "Syncing…" : "⟳ Sync from Jira"}
           </button>
         </div>
+      </div>
+
+      {/* Period picker */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Month:</span>
+        {PERIOD_OPTIONS.slice(0, 13).map(p => (
+          <button key={p.key} onClick={() => setPeriodKey(p.key)}
+            style={{
+              padding: "4px 12px", borderRadius: 16, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              border: periodKey === p.key ? "1.5px solid #1e293b" : "1px solid #e2e8f0",
+              background: periodKey === p.key ? "#1e293b" : "white",
+              color: periodKey === p.key ? "white" : "#64748b",
+              transition: "all 0.15s",
+            }}>
+            {p.label}
+          </button>
+        ))}
+        <select
+          value={PERIOD_OPTIONS.findIndex(p => p.key === periodKey) >= 13 ? periodKey : ""}
+          onChange={e => e.target.value && setPeriodKey(e.target.value)}
+          style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: "4px 8px", fontSize: 12, color: "#64748b", background: "white", outline: "none", cursor: "pointer" }}>
+          <option value="">Quarters…</option>
+          {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
+            <option key={p.key} value={p.key}>{p.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* Creds warning */}
@@ -307,8 +382,8 @@ export default function App() {
         <>
           {/* ── SECTION 1: SUMMARY STATS ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
-            <SummaryCard label="Total Tickets"        value={tickets.length}  color="#0f172a" />
-            <SummaryCard label="Shipped / Done"       value={doneCount}       color="#22c55e" sub={`${Math.round(doneCount/tickets.length*100)}% complete`} />
+            <SummaryCard label="Total Tickets"        value={dateFiltered.length}  color="#0f172a" />
+            <SummaryCard label="Shipped / Done"       value={doneCount}       color="#22c55e" sub={dateFiltered.length ? `${Math.round(doneCount/dateFiltered.length*100)}% complete` : "—"} />
             <SummaryCard label="In Progress"          value={activeCount}     color="#3b82f6" />
             <SummaryCard label="Needs Investigation"  value={blockedCount}    color="#f59e0b" />
             {newKeys.size > 0 && <SummaryCard label="New This Sync" value={newKeys.size} color="#a855f7" sub="Highlighted below" />}
@@ -354,7 +429,7 @@ export default function App() {
                   style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white" }}>
                   {statuses.map(s => <option key={s}>{s}</option>)}
                 </select>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} of {tickets.length}</span>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} of {dateFiltered.length}</span>
               </div>
             </div>
             <div style={{ overflowX: "auto" }}>
