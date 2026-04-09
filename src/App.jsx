@@ -822,7 +822,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700, color: "#1e1b4b" }}>Quality Areas</div>
-                <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout</div>
+                <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout and manually reviewed by PM to ensure accuracy</div>
               </div>
               {filterBucket && (
                 <button onClick={() => setFilterBucket(null)}
