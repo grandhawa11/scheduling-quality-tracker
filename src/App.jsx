@@ -7,6 +7,15 @@ const JIRA_TOKEN    = import.meta.env.VITE_JIRA_API_TOKEN || "";
 const DEFAULT_JQL =
   'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
 
+// Extract plain text from Jira ADF (Atlassian Document Format) description
+function extractAdfText(node) {
+  if (!node) return "";
+  if (typeof node === "string") return node;
+  if (node.type === "text") return node.text || "";
+  if (Array.isArray(node.content)) return node.content.map(extractAdfText).join(" ");
+  return "";
+}
+
 function getBucket(ticket, bucketRules) {
   const haystack = `${ticket.summary} ${ticket.epic || ""}`.toLowerCase();
   for (const bucket of bucketRules) {
@@ -264,41 +273,60 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
   const shipped = dateFiltered
     .filter(t => t.status === "Done")
     .sort(byUpdated)
-    .slice(0, 5)
-    .map(t => ({ key: t.key, summary: truncate(t.summary) }));
+    .slice(0, 8)
+    .map(t => ({ key: t.key, summary: truncate(t.summary), description: t.description }));
 
   const active = dateFiltered
     .filter(t => ["In Progress", "In Review"].includes(t.status))
     .sort(byUpdated)
-    .slice(0, 5)
-    .map(t => ({ key: t.key, summary: truncate(t.summary) }));
+    .slice(0, 8)
+    .map(t => ({ key: t.key, summary: truncate(t.summary), description: t.description }));
 
   const needsDecision = dateFiltered
     .filter(t => t.status === "Investigation Required")
-    .map(t => ({ key: t.key, summary: truncate(t.summary) }));
+    .map(t => ({ key: t.key, summary: truncate(t.summary), description: t.description }));
 
-  // Build summary sentence
+  // Group tickets by parent epic (only where parentName exists)
+  const epicGroups = {};
+  dateFiltered.forEach(t => {
+    if (!t.parentName || !t.parentKey) return;
+    if (!epicGroups[t.parentKey]) epicGroups[t.parentKey] = { name: t.parentName, key: t.parentKey, tickets: [], doneCount: 0, activeCount: 0 };
+    epicGroups[t.parentKey].tickets.push(t);
+    if (t.status === "Done") epicGroups[t.parentKey].doneCount++;
+    if (["In Progress", "In Review"].includes(t.status)) epicGroups[t.parentKey].activeCount++;
+  });
+  // Only show epics with >3 tickets rolling up
+  const significantEpics = Object.values(epicGroups)
+    .filter(g => g.tickets.length > 3)
+    .sort((a, b) => b.tickets.length - a.tickets.length);
+
+  // Build richer summary
   const parts = [];
-  const topDone = [...bucketStats].sort((a, b) => b.done - a.done).filter(b => b.done > 0);
-  if (topDone.length >= 2) {
-    parts.push(`Good progress in ${topDone[0].label} and ${topDone[1].label} this period.`);
-  } else if (topDone.length === 1) {
-    parts.push(`Good progress in ${topDone[0].label} this period.`);
+  const totalDone = dateFiltered.filter(t => t.status === "Done").length;
+  const totalActive = dateFiltered.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
+
+  parts.push(`${dateFiltered.length} tickets this period — ${totalDone} shipped, ${totalActive} in progress.`);
+
+  if (significantEpics.length > 0) {
+    const top = significantEpics[0];
+    parts.push(`Primary focus: ${top.name} (${top.tickets.length} tickets, ${top.doneCount} done, ${top.activeCount} active).`);
+    if (significantEpics.length > 1) {
+      const others = significantEpics.slice(1).map(e => `${e.name} (${e.tickets.length})`).join(", ");
+      parts.push(`Also notable: ${others}.`);
+    }
   }
 
-  const topActive = [...bucketStats].sort((a, b) => b.inProgress - a.inProgress).filter(b => b.inProgress > 0);
-  if (topActive.length > 0) {
-    parts.push(`Active work underway in ${topActive[0].label}.`);
+  const topDone = [...bucketStats].sort((a, b) => b.done - a.done).filter(b => b.done > 0);
+  if (topDone.length >= 2) {
+    parts.push(`Quality areas with most progress: ${topDone[0].label} and ${topDone[1].label}.`);
   }
 
   const queued = bucketStats.filter(b => b.done === 0 && b.inProgress === 0 && b.total > 0);
   if (queued.length > 0) {
-    parts.push(`Upcoming work queued in ${queued[0].label}.`);
+    parts.push(`Upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
   }
 
-  const summary = parts.length > 0 ? parts : [`${dateFiltered.length} tickets in this period.`];
-
-  return { summary, shipped, active, needsDecision };
+  return { summary: parts, shipped, active, needsDecision, significantEpics };
 }
 
 // ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -392,7 +420,7 @@ export default function App() {
       const prevKeys = new Set(tickets.map(t => t.key));
       const params   = new URLSearchParams({
         jql,
-        fields: "summary,status,priority,assignee,updated,customfield_10005,issuetype,parent",
+        fields: "summary,status,priority,assignee,updated,customfield_10005,issuetype,parent,description",
       });
       const res = await fetch(`/api/jira?${params}`);
       if (!res.ok) {
@@ -403,9 +431,11 @@ export default function App() {
       const parsed = (data.issues || []).map(issue => {
         const typeName = issue.fields.issuetype?.name || "Unknown";
         const isEpic = typeName.toLowerCase() === "epic";
+        const descText = extractAdfText(issue.fields.description).trim();
         const t = {
           key:        issue.key,
           summary:    issue.fields.summary,
+          description: descText ? descText.slice(0, 200) : null,
           status:     issue.fields.status?.name || "Unknown",
           priority:   issue.fields.priority?.name || "None",
           assignee:   issue.fields.assignee?.displayName || null,
@@ -633,28 +663,68 @@ export default function App() {
           </div>
 
           {/* ── SECTION 3: PERIOD SUMMARY ── */}
-          <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 14, padding: "20px 24px", marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.07em", color: "#92400e", textTransform: "uppercase" }}>Period summary</span>
-              <span style={{ fontSize: 13, color: "#78716c" }}>{period?.label || "All Time"}</span>
+          <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 14, padding: "24px 28px", marginBottom: 32, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1b4b" }}>Period Summary</span>
+              <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>{period?.label || "All Time"}</span>
             </div>
             {!weeklyInsights ? (
-              <p style={{ margin: 0, fontSize: 14, color: "#78716c" }}>Sync from Jira to generate insights.</p>
+              <p style={{ margin: 0, fontSize: 14, color: "#9ca3af" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 14, color: "#1e293b", lineHeight: 1.9, textAlign: "left" }}>
+                {/* Overview bullets */}
+                <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 14, color: "#374151", lineHeight: 2, textAlign: "left" }}>
                   {weeklyInsights.summary.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+                {/* Epic rollups */}
+                {weeklyInsights.significantEpics?.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {weeklyInsights.significantEpics.map(epic => (
+                        <div key={epic.key} style={{ background: "#f9f7fc", border: "1px solid #ede9f3", borderRadius: 10, padding: "14px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <a href={`${JIRA_BASE_URL}/browse/${epic.key}`} target="_blank" rel="noopener noreferrer"
+                              style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", fontFamily: "monospace", textDecoration: "none" }}>{epic.key}</a>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: "#1e1b4b" }}>{epic.name}</span>
+                          </div>
+                          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+                            {epic.tickets.length} tickets rolling up — {epic.doneCount} done, {epic.activeCount} in progress, {epic.tickets.length - epic.doneCount - epic.activeCount} queued
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {epic.tickets.slice(0, 6).map(t => (
+                              <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
+                                title={t.description || t.summary}
+                                style={{
+                                  display: "inline-flex", alignItems: "center", gap: 5, borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4,
+                                  background: t.status === "Done" ? "#f0fdf4" : ["In Progress", "In Review"].includes(t.status) ? "#eff6ff" : "#f9fafb",
+                                  border: `1px solid ${t.status === "Done" ? "#bbf7d0" : ["In Progress", "In Review"].includes(t.status) ? "#bfdbfe" : "#e5e7eb"}`,
+                                }}>
+                                <span style={{ fontWeight: 700, fontFamily: "monospace", color: t.status === "Done" ? "#22c55e" : ["In Progress", "In Review"].includes(t.status) ? "#3b82f6" : "#9ca3af" }}>{t.key}</span>
+                                <span style={{ color: "#374151" }}>{truncate(t.summary, 40)}</span>
+                              </a>
+                            ))}
+                            {epic.tickets.length > 6 && <span style={{ fontSize: 11, color: "#9ca3af", padding: "3px 8px" }}>+{epic.tickets.length - 6} more</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Shipped / Active / Needs investigation */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {weeklyInsights.shipped.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 8 }}>Shipped</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#22c55e", textTransform: "uppercase", marginBottom: 8 }}>Shipped</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {weeklyInsights.shipped.map(t => (
                           <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "5px 10px", textDecoration: "none", fontSize: 12, lineHeight: 1.4 }}>
-                            <span style={{ fontWeight: 700, color: "#22c55e", fontFamily: "monospace" }}>{t.key}</span>
-                            <span style={{ color: "#374151" }}>{t.summary}</span>
+                            style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px", textDecoration: "none", fontSize: 13, lineHeight: 1.5 }}>
+                            <span style={{ fontWeight: 700, color: "#22c55e", fontFamily: "monospace", flexShrink: 0 }}>{t.key}</span>
+                            <span style={{ color: "#1e293b" }}>{t.summary}</span>
+                            {t.description && <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: "auto", flexShrink: 0, maxWidth: "40%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(t.description, 80)}</span>}
                           </a>
                         ))}
                       </div>
@@ -662,13 +732,14 @@ export default function App() {
                   )}
                   {weeklyInsights.active.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 8 }}>In progress</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#3b82f6", textTransform: "uppercase", marginBottom: 8 }}>In Progress</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {weeklyInsights.active.map(t => (
                           <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "5px 10px", textDecoration: "none", fontSize: 12, lineHeight: 1.4 }}>
-                            <span style={{ fontWeight: 700, color: "#3b82f6", fontFamily: "monospace" }}>{t.key}</span>
-                            <span style={{ color: "#374151" }}>{t.summary}</span>
+                            style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "8px 12px", textDecoration: "none", fontSize: 13, lineHeight: 1.5 }}>
+                            <span style={{ fontWeight: 700, color: "#3b82f6", fontFamily: "monospace", flexShrink: 0 }}>{t.key}</span>
+                            <span style={{ color: "#1e293b" }}>{t.summary}</span>
+                            {t.description && <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: "auto", flexShrink: 0, maxWidth: "40%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(t.description, 80)}</span>}
                           </a>
                         ))}
                       </div>
@@ -676,13 +747,14 @@ export default function App() {
                   )}
                   {weeklyInsights.needsDecision.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 8 }}>Needs investigation</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#f59e0b", textTransform: "uppercase", marginBottom: 8 }}>Needs Investigation</div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {weeklyInsights.needsDecision.map(t => (
                           <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "5px 10px", textDecoration: "none", fontSize: 12, lineHeight: 1.4 }}>
-                            <span style={{ fontWeight: 700, color: "#f59e0b", fontFamily: "monospace" }}>{t.key}</span>
-                            <span style={{ color: "#374151" }}>{t.summary}</span>
+                            style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", textDecoration: "none", fontSize: 13, lineHeight: 1.5 }}>
+                            <span style={{ fontWeight: 700, color: "#f59e0b", fontFamily: "monospace", flexShrink: 0 }}>{t.key}</span>
+                            <span style={{ color: "#1e293b" }}>{t.summary}</span>
+                            {t.description && <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: "auto", flexShrink: 0, maxWidth: "40%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(t.description, 80)}</span>}
                           </a>
                         ))}
                       </div>
