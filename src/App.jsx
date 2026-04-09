@@ -490,6 +490,21 @@ export default function App() {
         </div>
       )}
 
+      {/* ── LOADING ── */}
+      {loading && (
+        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "48px 24px", textAlign: "center", marginBottom: 16 }}>
+          <div style={{ width: 200, height: 4, background: "#f1f5f9", borderRadius: 4, margin: "0 auto 16px", overflow: "hidden" }}>
+            <div style={{
+              width: "40%", height: "100%", background: "#1e293b", borderRadius: 4,
+              animation: "loading 1.2s ease-in-out infinite",
+            }} />
+          </div>
+          <style>{`@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }`}</style>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Syncing from Jira…</div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Fetching all matching tickets</div>
+        </div>
+      )}
+
       {/* ── EMPTY STATE ── */}
       {!loading && tickets.length === 0 && !error && (
         <div style={{ background: "white", border: "2px dashed #e2e8f0", borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
