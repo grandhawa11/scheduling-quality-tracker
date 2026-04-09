@@ -542,40 +542,40 @@ export default function App() {
       <div style={{ padding: "0 32px 32px" }}>
 
       {/* ── PERIOD PICKER ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Period:</span>
-        {PERIOD_OPTIONS.slice(0, periodsExpanded ? 13 : 5).map(p => (
-          <button key={p.key} onClick={() => setPeriodKey(p.key)}
-            style={{
-              padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              border: periodKey === p.key ? "1.5px solid #7C3AED" : "1px solid #e5e7eb",
-              background: periodKey === p.key ? "#7C3AED" : "white",
-              color: periodKey === p.key ? "white" : "#6b7280",
-              transition: "all 0.15s",
-              boxShadow: periodKey === p.key ? "0 2px 6px rgba(124,58,237,0.25)" : "none",
-            }}>
-            {p.label}
-          </button>
-        ))}
-        <button onClick={() => setPeriodsExpanded(v => !v)}
-          style={{
-            width: 30, height: 30, borderRadius: "50%", border: "1px solid #e5e7eb", background: "white",
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 14, color: "#6b7280", transition: "all 0.2s", transform: periodsExpanded ? "rotate(180deg)" : "rotate(0deg)",
-          }}>
-          ›
-        </button>
-        {periodsExpanded && (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151", flexShrink: 0 }}>Period:</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, overflow: "hidden", flexWrap: periodsExpanded ? "wrap" : "nowrap" }}>
+          {PERIOD_OPTIONS.slice(0, 13).map(p => (
+            <button key={p.key} onClick={() => setPeriodKey(p.key)}
+              style={{
+                padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+                border: periodKey === p.key ? "1.5px solid #7C3AED" : "1px solid #e5e7eb",
+                background: periodKey === p.key ? "#7C3AED" : "white",
+                color: periodKey === p.key ? "white" : "#6b7280",
+                transition: "all 0.15s",
+                boxShadow: periodKey === p.key ? "0 2px 6px rgba(124,58,237,0.25)" : "none",
+              }}>
+              {p.label}
+            </button>
+          ))}
           <select
             value={PERIOD_OPTIONS.findIndex(p => p.key === periodKey) >= 13 ? periodKey : ""}
             onChange={e => e.target.value && setPeriodKey(e.target.value)}
-            style={{ border: "1px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 13, color: "#6b7280", background: "white", outline: "none", cursor: "pointer" }}>
+            style={{ border: "1px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 13, color: "#6b7280", background: "white", outline: "none", cursor: "pointer", flexShrink: 0 }}>
             <option value="">Quarters…</option>
             {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
               <option key={p.key} value={p.key}>{p.label}</option>
             ))}
           </select>
-        )}
+        </div>
+        <button onClick={() => setPeriodsExpanded(v => !v)}
+          style={{
+            width: 30, height: 30, borderRadius: "50%", border: "1px solid #e5e7eb", background: "white",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            fontSize: 14, color: "#6b7280", transition: "transform 0.2s", transform: periodsExpanded ? "rotate(90deg)" : "rotate(0deg)",
+          }}>
+          ›
+        </button>
       </div>
 
       {/* ── CREDS WARNING ── */}
