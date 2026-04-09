@@ -342,31 +342,30 @@ function applyGerund(s) {
   return { text: s, matched: false };
 }
 
-// Build a natural-language phrase from a ticket's summary + description.
-// Prefer description when the title is too technical; apply gerund form.
+// Build a concise natural-language phrase from a ticket's summary + description.
+// Always prefer a short, readable result over verbose Jira descriptions.
 function toGerundPhrase(summary, description) {
   const title = cleanTitle(summary);
 
-  // Try description first — often more natural language
+  // First try the cleaned title — titles are usually concise
+  const gTitle = applyGerund(title);
+  if (gTitle.matched) return gTitle.text;
+
+  // If title doesn't start with a verb, check if description has a cleaner opener
   if (description) {
     const firstSent = description.match(/^[^.!?]+/);
     if (firstSent) {
       const cleaned = cleanTitle(firstSent[0]).trim();
-      if (cleaned.length > 15 && cleaned.length < 200) {
-        const g = applyGerund(cleaned);
-        if (g.matched) return truncate(g.text, 140);
-        // Description sentence doesn't start with a verb — use it with "working on"
-        return "working on " + truncate(cleaned.charAt(0).toLowerCase() + cleaned.slice(1), 130);
+      // Only use description if it's short and starts with a verb
+      if (cleaned.length > 10 && cleaned.length < 80) {
+        const gDesc = applyGerund(cleaned);
+        if (gDesc.matched) return gDesc.text;
       }
     }
   }
 
-  // Fall back to cleaned title
-  const g = applyGerund(title);
-  if (g.matched) return truncate(g.text, 140);
-
-  // No verb match — wrap with "working on" to keep it natural
-  return "working on " + truncate(title.charAt(0).toLowerCase() + title.slice(1), 130);
+  // No verb match anywhere — wrap the title with "working on"
+  return "working on " + (title.charAt(0).toLowerCase() + title.slice(1));
 }
 
 function joinList(items) {
