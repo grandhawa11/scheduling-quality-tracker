@@ -303,7 +303,10 @@ function TicketRow({ ticket, isNew, bucketRules, columns }) {
 }
 
 function truncate(str, max = 60) {
-  return str.length > max ? str.slice(0, max) + "…" : str;
+  if (str.length <= max) return str;
+  // Cut at last space before max to avoid mid-word truncation
+  const cut = str.lastIndexOf(" ", max);
+  return str.slice(0, cut > 0 ? cut : max) + "…";
 }
 
 // Clean a title: strip prefixes like "bE >", "FE >", "[Quality]", ticket keys
@@ -349,21 +352,21 @@ function toGerundPhrase(summary, description) {
     const firstSent = description.match(/^[^.!?]+/);
     if (firstSent) {
       const cleaned = cleanTitle(firstSent[0]).trim();
-      if (cleaned.length > 15 && cleaned.length < 140) {
+      if (cleaned.length > 15 && cleaned.length < 200) {
         const g = applyGerund(cleaned);
-        if (g.matched) return truncate(g.text, 80);
+        if (g.matched) return truncate(g.text, 140);
         // Description sentence doesn't start with a verb — use it with "working on"
-        return "working on " + truncate(cleaned.charAt(0).toLowerCase() + cleaned.slice(1), 70);
+        return "working on " + truncate(cleaned.charAt(0).toLowerCase() + cleaned.slice(1), 130);
       }
     }
   }
 
   // Fall back to cleaned title
   const g = applyGerund(title);
-  if (g.matched) return truncate(g.text, 80);
+  if (g.matched) return truncate(g.text, 140);
 
   // No verb match — wrap with "working on" to keep it natural
-  return "working on " + truncate(title.charAt(0).toLowerCase() + title.slice(1), 70);
+  return "working on " + truncate(title.charAt(0).toLowerCase() + title.slice(1), 130);
 }
 
 function joinList(items) {
