@@ -168,7 +168,12 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
   );
 }
 
+const TYPE_COLORS = {
+  Epic: "#6366f1", Story: "#22c55e", Bug: "#ef4444", Task: "#3b82f6", "Sub-task": "#94a3b8",
+};
+
 function TicketRow({ ticket, isNew, bucketRules }) {
+  const typeColor = TYPE_COLORS[ticket.issueType] || "#6b7280";
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white" }}>
       <td style={{ padding: "10px 12px", width: 100 }}>
@@ -180,6 +185,18 @@ function TicketRow({ ticket, isNew, bucketRules }) {
       <td style={{ padding: "10px 12px" }}>
         <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.4 }}>{ticket.summary}</div>
         {ticket.epic && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{ticket.epic}</div>}
+      </td>
+      <td style={{ padding: "10px 12px", width: 70 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: typeColor }}>{ticket.issueType}</span>
+      </td>
+      <td style={{ padding: "10px 12px", width: 140 }}>
+        {ticket.parentKey ? (
+          <a href={`${JIRA_BASE_URL}/browse/${ticket.parentKey}`} target="_blank" rel="noopener noreferrer"
+            style={{ textDecoration: "none", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+            <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#94a3b8" }}>{ticket.parentKey}</span>
+            {ticket.parentName && <span style={{ marginLeft: 4 }}>{ticket.parentName.length > 30 ? ticket.parentName.slice(0, 30) + "…" : ticket.parentName}</span>}
+          </a>
+        ) : <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>}
       </td>
       <td style={{ padding: "10px 12px", width: 40 }}>
         <div style={{
@@ -298,7 +315,7 @@ export default function App() {
       const prevKeys = new Set(tickets.map(t => t.key));
       const params   = new URLSearchParams({
         jql,
-        fields: "summary,status,priority,assignee,updated,customfield_10005",
+        fields: "summary,status,priority,assignee,updated,customfield_10005,issuetype,parent",
       });
       const res = await fetch(`/api/jira?${params}`);
       if (!res.ok) {
@@ -307,14 +324,19 @@ export default function App() {
       }
       const data   = await res.json();
       const parsed = (data.issues || []).map(issue => {
+        const typeName = issue.fields.issuetype?.name || "Unknown";
+        const isEpic = typeName.toLowerCase() === "epic";
         const t = {
-          key:      issue.key,
-          summary:  issue.fields.summary,
-          status:   issue.fields.status?.name || "Unknown",
-          priority: issue.fields.priority?.name || "None",
-          assignee: issue.fields.assignee?.displayName || null,
-          epic:     issue.fields.customfield_10005 || null,
-          updated:  issue.fields.updated,
+          key:        issue.key,
+          summary:    issue.fields.summary,
+          status:     issue.fields.status?.name || "Unknown",
+          priority:   issue.fields.priority?.name || "None",
+          assignee:   issue.fields.assignee?.displayName || null,
+          epic:       issue.fields.customfield_10005 || null,
+          updated:    issue.fields.updated,
+          issueType:  typeName,
+          parentKey:  isEpic ? issue.key : (issue.fields.parent?.key || null),
+          parentName: isEpic ? issue.fields.summary : (issue.fields.parent?.fields?.summary || null),
         };
         t.bucket = getBucket(t, rules);
         return t;
@@ -596,14 +618,14 @@ export default function App() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                    {["Ticket","Summary / Epic","Area","Status","Priority","Assignee","Updated"].map(h => (
+                    {["Ticket","Summary / Epic","Type","Parent","Area","Status","Priority","Assignee","Updated"].map(h => (
                       <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0
-                    ? <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
+                    ? <tr><td colSpan={9} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
                     : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} />)
                   }
                 </tbody>
