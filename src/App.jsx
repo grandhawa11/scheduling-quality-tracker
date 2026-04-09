@@ -381,13 +381,13 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     if (t.issueType === "Epic") epicTicketMap[t.key] = t;
   });
 
-  // ── TOP 3 BULLETS (always present if data available) ──
-  const topBullets = [];
+  // ── BUILD FLAT BULLET LIST ──
+  const bullets = [];
   const totalDone = dateFiltered.filter(t => t.status === "Done").length;
   const totalActive = dateFiltered.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
 
   // 1) Ticket counts
-  topBullets.push(`${dateFiltered.length} tickets this period — ${totalDone} shipped, ${totalActive} in progress.`);
+  bullets.push(`${dateFiltered.length} tickets this period — ${totalDone} shipped, ${totalActive} in progress.`);
 
   // 2) Primary focus
   if (significantEpics.length > 0) {
@@ -395,49 +395,51 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     const epicTicket = epicTicketMap[top.key];
     const goal = firstSentences(epicTicket?.description);
     if (goal) {
-      topBullets.push(`Primary focus: ${top.name} — ${goal}`);
+      bullets.push(`Primary focus: ${top.name} (${top.tickets.length} tickets) — ${goal}`);
     } else {
-      topBullets.push(`Primary focus: ${top.name} (${top.tickets.length} tickets, ${top.doneCount} done, ${top.activeCount} active).`);
+      bullets.push(`Primary focus: ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
     }
   }
 
   // 3) Upcoming work
   const queued = bucketStats.filter(b => b.done === 0 && b.inProgress === 0 && b.total > 0);
   if (queued.length > 0) {
-    topBullets.push(`Upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
+    bullets.push(`Upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
   }
 
-  // ── PER-EPIC INSIGHT BULLETS ──
-  const epicInsights = significantEpics.map(epic => {
+  // Per-epic combined insight bullets
+  significantEpics.forEach(epic => {
     const epicTicket = epicTicketMap[epic.key];
     const goal = firstSentences(epicTicket?.description);
 
-    // Synthesize focus from active child tickets
     const activeChildren = epic.tickets.filter(t => ["In Progress", "In Review"].includes(t.status) && t.key !== epic.key);
     const doneChildren = epic.tickets.filter(t => t.status === "Done" && t.key !== epic.key);
     const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
 
-    const focusLines = [];
+    // Combine active + done into one sentence where possible
+    const parts = [];
     if (activeChildren.length > 0) {
-      const phrases = activeChildren.slice(0, 4).map(t => toGerundPhrase(t.summary));
-      focusLines.push(`Currently ${joinList(phrases)}.`);
+      const phrases = activeChildren.slice(0, 3).map(t => toGerundPhrase(t.summary));
+      parts.push(`currently ${joinList(phrases)}`);
     }
-    if (doneChildren.length > 0) {
-      const phrases = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary));
-      focusLines.push(`Completed: ${joinList(phrases)}.`);
+    if (doneChildren.length > 0 && doneChildren.length <= 3) {
+      const phrases = doneChildren.map(t => toGerundPhrase(t.summary));
+      parts.push(`already completed ${joinList(phrases)}`);
+    } else if (doneChildren.length > 3) {
+      parts.push(`${doneChildren.length} items already completed`);
     }
     if (upcomingChildren.length > 0) {
       const phrases = upcomingChildren.slice(0, 2).map(t => toGerundPhrase(t.summary));
-      focusLines.push(`Up next: ${joinList(phrases)}.`);
+      parts.push(`up next is ${joinList(phrases)}`);
     }
 
-    return { name: epic.name, key: epic.key, goal, focusLines, ticketCount: epic.tickets.length, doneCount: epic.doneCount, activeCount: epic.activeCount };
+    if (parts.length > 0) {
+      bullets.push(`Within ${epic.name}: ${parts.join("; ")}.`);
+    }
   });
 
-  // ── ONE-OFF BUCKET NOTES ──
-  // Tickets in buckets but not in any significant epic
+  // One-off bucket notes
   const significantEpicKeys = new Set(significantEpics.map(e => e.key));
-  const bucketOneOffs = [];
   bucketStats.forEach(b => {
     const orphans = dateFiltered.filter(t =>
       t.bucket === b.label &&
@@ -446,14 +448,14 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     );
     if (orphans.length > 0 && orphans.length <= 3) {
       const items = orphans.map(t => toGerundPhrase(t.summary));
-      bucketOneOffs.push(`In ${b.label}: ${joinList(items)}.`);
+      bullets.push(`In ${b.label}: ${joinList(items)}.`);
     } else if (orphans.length > 3) {
       const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary));
-      bucketOneOffs.push(`In ${b.label}: ${joinList(sample)}, and ${orphans.length - 2} more.`);
+      bullets.push(`In ${b.label}: ${joinList(sample)}, and ${orphans.length - 2} more items.`);
     }
   });
 
-  return { topBullets, epicInsights, bucketOneOffs, shipped, active, needsDecision, significantEpics };
+  return { bullets, shipped, active, needsDecision, significantEpics };
 }
 
 // ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -810,43 +812,9 @@ export default function App() {
               <p style={{ margin: 0, fontSize: 14, color: "#9ca3af" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                {/* Top bullets */}
                 <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 14, color: "#374151", lineHeight: 2, textAlign: "left" }}>
-                  {weeklyInsights.topBullets.map((s, i) => <li key={i}>{s}</li>)}
+                  {weeklyInsights.bullets.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
-
-                {/* Per-epic insight bullets */}
-                {weeklyInsights.epicInsights?.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    {weeklyInsights.epicInsights.map(ei => (
-                      <div key={ei.key} style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e1b4b", marginBottom: 4 }}>
-                          <a href={`${JIRA_BASE_URL}/browse/${ei.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ color: "#7C3AED", textDecoration: "none", fontFamily: "monospace", fontSize: 12, fontWeight: 700, marginRight: 8 }}>{ei.key}</a>
-                          {ei.name}
-                          <span style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af", marginLeft: 8 }}>{ei.ticketCount} tickets · {ei.doneCount} done · {ei.activeCount} active</span>
-                        </div>
-                        {ei.goal && (
-                          <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 6 }}>
-                            Goal: {ei.goal}
-                          </div>
-                        )}
-                        {ei.focusLines.length > 0 && (
-                          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#374151", lineHeight: 1.9 }}>
-                            {ei.focusLines.map((line, i) => <li key={i}>{line}</li>)}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* One-off bucket notes */}
-                {weeklyInsights.bucketOneOffs?.length > 0 && (
-                  <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 13, color: "#6b7280", lineHeight: 1.9 }}>
-                    {weeklyInsights.bucketOneOffs.map((note, i) => <li key={i}>{note}</li>)}
-                  </ul>
-                )}
 
                 {/* Key Epics cards */}
                 {weeklyInsights.significantEpics?.length > 0 && (
