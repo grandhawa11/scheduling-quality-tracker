@@ -172,50 +172,82 @@ const TYPE_COLORS = {
   Epic: "#6366f1", Story: "#22c55e", Bug: "#ef4444", Task: "#3b82f6", "Sub-task": "#94a3b8",
 };
 
-function TicketRow({ ticket, isNew, bucketRules }) {
+const ALL_COLUMNS = [
+  { id: "ticket",   label: "Ticket",         width: 100 },
+  { id: "summary",  label: "Summary / Epic", width: undefined },
+  { id: "type",     label: "Type",           width: 70 },
+  { id: "parent",   label: "Parent",         width: 140 },
+  { id: "area",     label: "Area",           width: 40 },
+  { id: "status",   label: "Status",         width: 160 },
+  { id: "priority", label: "Priority",       width: 80 },
+  { id: "assignee", label: "Assignee",       width: 110 },
+  { id: "updated",  label: "Updated",        width: 80 },
+];
+
+const DEFAULT_COL_ORDER = ALL_COLUMNS.map(c => c.id);
+
+function renderCell(colId, ticket, bucketRules) {
   const typeColor = TYPE_COLORS[ticket.issueType] || "#6b7280";
-  return (
-    <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white" }}>
-      <td style={{ padding: "10px 12px", width: 100 }}>
+  switch (colId) {
+    case "ticket":
+      return (
         <a href={`${JIRA_BASE_URL}/browse/${ticket.key}`} target="_blank" rel="noopener noreferrer"
           style={{ color: "#3b82f6", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "monospace" }}>
           {ticket.key}
         </a>
-      </td>
-      <td style={{ padding: "10px 12px" }}>
-        <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.4 }}>{ticket.summary}</div>
-        {ticket.epic && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{ticket.epic}</div>}
-      </td>
-      <td style={{ padding: "10px 12px", width: 70 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: typeColor }}>{ticket.issueType}</span>
-      </td>
-      <td style={{ padding: "10px 12px", width: 140 }}>
-        {ticket.parentKey ? (
-          <a href={`${JIRA_BASE_URL}/browse/${ticket.parentKey}`} target="_blank" rel="noopener noreferrer"
-            style={{ textDecoration: "none", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
-            <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#94a3b8" }}>{ticket.parentKey}</span>
-            {ticket.parentName && <span style={{ marginLeft: 4 }}>{ticket.parentName.length > 30 ? ticket.parentName.slice(0, 30) + "…" : ticket.parentName}</span>}
-          </a>
-        ) : <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>}
-      </td>
-      <td style={{ padding: "10px 12px", width: 40 }}>
+      );
+    case "summary":
+      return (
+        <>
+          <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.4 }}>{ticket.summary}</div>
+          {ticket.epic && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{ticket.epic}</div>}
+        </>
+      );
+    case "type":
+      return <span style={{ fontSize: 11, fontWeight: 600, color: typeColor }}>{ticket.issueType}</span>;
+    case "parent":
+      return ticket.parentKey ? (
+        <a href={`${JIRA_BASE_URL}/browse/${ticket.parentKey}`} target="_blank" rel="noopener noreferrer"
+          style={{ textDecoration: "none", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+          <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#94a3b8" }}>{ticket.parentKey}</span>
+          {ticket.parentName && <span style={{ marginLeft: 4 }}>{ticket.parentName.length > 30 ? ticket.parentName.slice(0, 30) + "…" : ticket.parentName}</span>}
+        </a>
+      ) : <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>;
+    case "area":
+      return (
         <div style={{
           width: 8, height: 8, borderRadius: "50%",
           background: bucketRules.find(b => b.label === ticket.bucket)?.color || "#e2e8f0",
           margin: "0 auto",
         }} />
-      </td>
-      <td style={{ padding: "10px 12px", width: 160 }}><StatusBadge status={ticket.status} /></td>
-      <td style={{ padding: "10px 12px", width: 80 }}>
+      );
+    case "status":
+      return <StatusBadge status={ticket.status} />;
+    case "priority":
+      return (
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <PriorityIcon priority={ticket.priority} />
           <span style={{ fontSize: 11, color: "#64748b" }}>{ticket.priority}</span>
         </div>
-      </td>
-      <td style={{ padding: "10px 12px", width: 110, fontSize: 11, color: "#94a3b8" }}>{ticket.assignee || "—"}</td>
-      <td style={{ padding: "10px 12px", width: 80, fontSize: 11, color: "#94a3b8" }}>
+      );
+    case "assignee":
+      return <span style={{ fontSize: 11, color: "#94a3b8" }}>{ticket.assignee || "—"}</span>;
+    case "updated":
+      return <span style={{ fontSize: 11, color: "#94a3b8" }}>
         {ticket.updated ? new Date(ticket.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
-      </td>
+      </span>;
+    default: return null;
+  }
+}
+
+function TicketRow({ ticket, isNew, bucketRules, columns }) {
+  return (
+    <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white" }}>
+      {columns.map(col => (
+        <td key={col.id} style={{ padding: "10px 12px", width: col.width }}>
+          {renderCell(col.id, ticket, bucketRules)}
+        </td>
+      ))}
     </tr>
   );
 }
@@ -284,6 +316,41 @@ export default function App() {
   const [showJql, setShowJql]           = useState(false);
   const [periodKey, setPeriodKey]       = useState(DEFAULT_PERIOD);
   const [bucketRules, setBucketRules]   = useState([]);
+  const [columnOrder, setColumnOrder]   = useState(() => {
+    try { return JSON.parse(localStorage.getItem("sqt-col-order")) || DEFAULT_COL_ORDER; } catch { return DEFAULT_COL_ORDER; }
+  });
+  const [hiddenCols, setHiddenCols]     = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("sqt-hidden-cols")) || []); } catch { return new Set(); }
+  });
+  const [showColMenu, setShowColMenu]   = useState(false);
+  const [dragCol, setDragCol]           = useState(null);
+
+  const visibleColumns = columnOrder.filter(id => !hiddenCols.has(id)).map(id => ALL_COLUMNS.find(c => c.id === id)).filter(Boolean);
+
+  const toggleColumn = (id) => {
+    setHiddenCols(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem("sqt-hidden-cols", JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const handleDragStart = (colId) => setDragCol(colId);
+  const handleDragOver = (e, colId) => {
+    e.preventDefault();
+    if (!dragCol || dragCol === colId) return;
+    setColumnOrder(prev => {
+      const next = [...prev];
+      const fromIdx = next.indexOf(dragCol);
+      const toIdx = next.indexOf(colId);
+      next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, dragCol);
+      localStorage.setItem("sqt-col-order", JSON.stringify(next));
+      return next;
+    });
+  };
+  const handleDragEnd = () => setDragCol(null);
 
   const fetchBuckets = useCallback(async () => {
     try {
@@ -626,6 +693,34 @@ export default function App() {
                   style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white", color: "#1e293b" }}>
                   {statuses.map(s => <option key={s}>{s}</option>)}
                 </select>
+                <div style={{ position: "relative" }}>
+                  <button onClick={() => setShowColMenu(v => !v)}
+                    style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, background: showColMenu ? "#f1f5f9" : "white", color: "#64748b", cursor: "pointer" }}>
+                    Columns
+                  </button>
+                  {showColMenu && (
+                    <div style={{
+                      position: "absolute", top: "100%", right: 0, marginTop: 4, background: "white",
+                      border: "1px solid #e2e8f0", borderRadius: 8, padding: 8, zIndex: 20,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)", minWidth: 170,
+                    }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.05em", padding: "4px 8px", textTransform: "uppercase" }}>Show / hide</div>
+                      {ALL_COLUMNS.map(col => (
+                        <label key={col.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", fontSize: 12, color: "#374151", cursor: "pointer", borderRadius: 4 }}>
+                          <input type="checkbox" checked={!hiddenCols.has(col.id)} onChange={() => toggleColumn(col.id)}
+                            style={{ accentColor: "#1e293b" }} />
+                          {col.label}
+                        </label>
+                      ))}
+                      <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 4, paddingTop: 4 }}>
+                        <button onClick={() => { setColumnOrder(DEFAULT_COL_ORDER); setHiddenCols(new Set()); localStorage.removeItem("sqt-col-order"); localStorage.removeItem("sqt-hidden-cols"); }}
+                          style={{ fontSize: 11, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 8px" }}>
+                          Reset to default
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <span style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} of {dateFiltered.length}</span>
               </div>
             </div>
@@ -633,15 +728,28 @@ export default function App() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-                    {["Ticket","Summary / Epic","Type","Parent","Area","Status","Priority","Assignee","Updated"].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>
+                    {visibleColumns.map(col => (
+                      <th key={col.id}
+                        draggable
+                        onDragStart={() => handleDragStart(col.id)}
+                        onDragOver={(e) => handleDragOver(e, col.id)}
+                        onDragEnd={handleDragEnd}
+                        style={{
+                          padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700,
+                          color: "#64748b", letterSpacing: "0.04em", whiteSpace: "nowrap",
+                          cursor: "grab", userSelect: "none",
+                          background: dragCol === col.id ? "#e2e8f0" : "transparent",
+                          transition: "background 0.15s",
+                        }}>
+                        {col.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0
-                    ? <tr><td colSpan={9} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
-                    : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} />)
+                    ? <tr><td colSpan={visibleColumns.length} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
+                    : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} columns={visibleColumns} />)
                   }
                 </tbody>
               </table>
