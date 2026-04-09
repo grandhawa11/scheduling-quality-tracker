@@ -686,7 +686,7 @@ export default function App() {
       <div style={{ background: "white", borderBottom: "1px solid #ede9f3", padding: "20px 32px", marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ background: "#7C3AED", color: "white", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800 }}>H</div>
+            <div style={{ background: "#7C3AED", color: "white", borderRadius: 12, width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, flexShrink: 0 }}>H</div>
             <div>
               <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1e1b4b", letterSpacing: "-0.01em" }}>Quality Work Dashboard</h1>
               {lastFetched && (
