@@ -845,7 +845,7 @@ export default function App() {
 
           {/* ── SECTION 3: PERIOD SUMMARY ── */}
           <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 14, padding: "24px 28px", marginBottom: 32, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1b4b" }}>Period Summary</span>
               <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>{period?.label || "All Time"}</span>
             </div>
@@ -869,7 +869,7 @@ export default function App() {
 
                 {/* Key Epics cards */}
                 {weeklyInsights.significantEpics?.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
+                  <div style={{ marginTop: 24, marginBottom: 20 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {weeklyInsights.significantEpics.map(epic => (
