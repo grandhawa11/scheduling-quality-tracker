@@ -342,30 +342,51 @@ function applyGerund(s) {
   return { text: s, matched: false };
 }
 
-// Build a concise natural-language phrase from a ticket's summary + description.
-// Always prefer a short, readable result over verbose Jira descriptions.
-function toGerundPhrase(summary, description) {
+// Build a natural-language phrase from a ticket's summary + description.
+// verbose=false: short phrase from title only. verbose=true: title + description context.
+function toGerundPhrase(summary, description, verbose = false) {
   const title = cleanTitle(summary);
 
-  // First try the cleaned title — titles are usually concise
+  // Build the base phrase from the title
+  let base;
   const gTitle = applyGerund(title);
-  if (gTitle.matched) return gTitle.text;
-
-  // If title doesn't start with a verb, check if description has a cleaner opener
-  if (description) {
+  if (gTitle.matched) {
+    base = gTitle.text;
+  } else if (description) {
     const firstSent = description.match(/^[^.!?]+/);
     if (firstSent) {
       const cleaned = cleanTitle(firstSent[0]).trim();
-      // Only use description if it's short and starts with a verb
       if (cleaned.length > 10 && cleaned.length < 80) {
         const gDesc = applyGerund(cleaned);
-        if (gDesc.matched) return gDesc.text;
+        if (gDesc.matched) { base = gDesc.text; }
       }
     }
   }
+  if (!base) base = "working on " + (title.charAt(0).toLowerCase() + title.slice(1));
 
-  // No verb match anywhere — wrap the title with "working on"
-  return "working on " + (title.charAt(0).toLowerCase() + title.slice(1));
+  // In succinct mode, just return the base phrase
+  if (!verbose) return base;
+
+  // In verbose mode, enrich with description context
+  if (description) {
+    const sentences = description.match(/[^.!?]+[.!?]+/g);
+    if (sentences) {
+      // Grab first sentence that adds info beyond the title
+      const titleLower = title.toLowerCase();
+      const extra = sentences.find(s => {
+        const sTrim = s.trim().toLowerCase();
+        // Skip sentences that basically repeat the title
+        return sTrim.length > 15 && !titleLower.includes(sTrim.replace(/[.!?]+$/, "").trim());
+      });
+      if (extra) {
+        const trimmed = extra.trim();
+        // Lower-case the first char to flow naturally after the dash
+        const appended = trimmed.charAt(0).toLowerCase() + trimmed.slice(1);
+        return `${base} — ${appended}`;
+      }
+    }
+  }
+  return base;
 }
 
 function joinList(items) {
@@ -493,17 +514,17 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
 
     if (activeChildren.length > 0) {
       const shown = activeChildren.slice(0, activeLimit);
-      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description));
+      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description, verbose));
       let activePart = `we're ${joinList(phrases)}`;
       if (activeChildren.length > activeLimit) activePart += ` and ${activeChildren.length - activeLimit} more`;
       parts.push(activePart);
     }
     if (doneChildren.length > 0 && doneChildren.length <= doneInlineLimit) {
-      const phrases = doneChildren.map(t => toGerundPhrase(t.summary, t.description));
+      const phrases = doneChildren.map(t => toGerundPhrase(t.summary, t.description, verbose));
       parts.push(`we've completed ${joinList(phrases)}`);
     } else if (doneChildren.length > doneInlineLimit) {
       if (verbose) {
-        const sample = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description));
+        const sample = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description, verbose));
         parts.push(`we've completed ${doneChildren.length} items including ${joinList(sample)}`);
       } else {
         parts.push(`we've completed ${doneChildren.length} items`);
@@ -511,7 +532,7 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
     }
     if (upcomingChildren.length > 0) {
       const shown = upcomingChildren.slice(0, upcomingLimit);
-      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description));
+      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description, verbose));
       let upPart = `up next we'll be ${joinList(phrases)}`;
       if (verbose && upcomingChildren.length > upcomingLimit) upPart += ` and ${upcomingChildren.length - upcomingLimit} more`;
       parts.push(upPart);
@@ -535,10 +556,10 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
       (!t.parentKey || !significantEpicKeys.has(t.parentKey))
     );
     if (orphans.length > 0 && orphans.length <= orphanInlineLimit) {
-      const items = orphans.map(t => toGerundPhrase(t.summary, t.description));
+      const items = orphans.map(t => toGerundPhrase(t.summary, t.description, verbose));
       oneOffBullets.push(`In ${b.label}, we're ${joinList(items)}.`);
     } else if (orphans.length > orphanInlineLimit) {
-      const sample = orphans.slice(0, orphanSampleLimit).map(t => toGerundPhrase(t.summary, t.description));
+      const sample = orphans.slice(0, orphanSampleLimit).map(t => toGerundPhrase(t.summary, t.description, verbose));
       oneOffBullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - orphanSampleLimit} more items.`);
     }
   });
