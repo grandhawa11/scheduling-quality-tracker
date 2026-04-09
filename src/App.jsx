@@ -306,6 +306,41 @@ function truncate(str, max = 60) {
   return str.length > max ? str.slice(0, max) + "…" : str;
 }
 
+// Convert "Add X" → "adding X", "Fix Y" → "fixing Y", etc.
+function toGerundPhrase(summary) {
+  const s = summary.replace(/\[Quality\]\s*/gi, "").trim();
+  const verbs = [
+    [/^Add\b/i,"adding"],[/^Update\b/i,"updating"],[/^Fix\b/i,"fixing"],[/^Create\b/i,"creating"],
+    [/^Remove\b/i,"removing"],[/^Implement\b/i,"implementing"],[/^Validate\b/i,"validating"],
+    [/^Migrate\b/i,"migrating"],[/^Refactor\b/i,"refactoring"],[/^Investigate\b/i,"investigating"],
+    [/^Set up\b/i,"setting up"],[/^Build\b/i,"building"],[/^Enable\b/i,"enabling"],
+    [/^Configure\b/i,"configuring"],[/^Ensure\b/i,"ensuring"],[/^Track\b/i,"tracking"],
+    [/^Clean\b/i,"cleaning up"],[/^Improve\b/i,"improving"],[/^Optimize\b/i,"optimizing"],
+    [/^Define\b/i,"defining"],[/^Review\b/i,"reviewing"],[/^Test\b/i,"testing"],
+    [/^Document\b/i,"documenting"],[/^Resolve\b/i,"resolving"],[/^Replace\b/i,"replacing"],
+    [/^Audit\b/i,"auditing"],[/^Align\b/i,"aligning"],[/^Deprecate\b/i,"deprecating"],
+    [/^Instrument\b/i,"instrumenting"],[/^Map\b/i,"mapping"],[/^Verify\b/i,"verifying"],
+  ];
+  for (const [pat, repl] of verbs) {
+    if (pat.test(s)) return s.replace(pat, repl);
+  }
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+function joinList(items) {
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return items.slice(0, -1).join(", ") + ", and " + items[items.length - 1];
+}
+
+// Extract first 1-2 sentences from a description string
+function firstSentences(desc, max = 2) {
+  if (!desc) return null;
+  const sentences = desc.match(/[^.!?]+[.!?]+/g);
+  if (!sentences) return desc.length > 150 ? desc.slice(0, 150) + "…" : desc;
+  return sentences.slice(0, max).join(" ").trim();
+}
+
 function generateWeeklyInsights(dateFiltered, bucketStats, period) {
   if (!dateFiltered.length) return null;
 
@@ -327,7 +362,7 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     .filter(t => t.status === "Investigation Required")
     .map(t => ({ key: t.key, summary: truncate(t.summary), description: t.description }));
 
-  // Group tickets by parent epic (only where parentName exists)
+  // Group tickets by parent epic
   const epicGroups = {};
   dateFiltered.forEach(t => {
     if (!t.parentName || !t.parentKey) return;
@@ -336,38 +371,89 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     if (t.status === "Done") epicGroups[t.parentKey].doneCount++;
     if (["In Progress", "In Review"].includes(t.status)) epicGroups[t.parentKey].activeCount++;
   });
-  // Only show epics with >3 tickets rolling up
   const significantEpics = Object.values(epicGroups)
     .filter(g => g.tickets.length > 3)
     .sort((a, b) => b.tickets.length - a.tickets.length);
 
-  // Build richer summary
-  const parts = [];
+  // Find the epic ticket itself (for its description)
+  const epicTicketMap = {};
+  dateFiltered.forEach(t => {
+    if (t.issueType === "Epic") epicTicketMap[t.key] = t;
+  });
+
+  // ── TOP 3 BULLETS (always present if data available) ──
+  const topBullets = [];
   const totalDone = dateFiltered.filter(t => t.status === "Done").length;
   const totalActive = dateFiltered.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
 
-  parts.push(`${dateFiltered.length} tickets this period — ${totalDone} shipped, ${totalActive} in progress.`);
+  // 1) Ticket counts
+  topBullets.push(`${dateFiltered.length} tickets this period — ${totalDone} shipped, ${totalActive} in progress.`);
 
+  // 2) Primary focus
   if (significantEpics.length > 0) {
     const top = significantEpics[0];
-    parts.push(`Primary focus: ${top.name} (${top.tickets.length} tickets, ${top.doneCount} done, ${top.activeCount} active).`);
-    if (significantEpics.length > 1) {
-      const others = significantEpics.slice(1).map(e => `${e.name} (${e.tickets.length})`).join(", ");
-      parts.push(`Also notable: ${others}.`);
+    const epicTicket = epicTicketMap[top.key];
+    const goal = firstSentences(epicTicket?.description);
+    if (goal) {
+      topBullets.push(`Primary focus: ${top.name} — ${goal}`);
+    } else {
+      topBullets.push(`Primary focus: ${top.name} (${top.tickets.length} tickets, ${top.doneCount} done, ${top.activeCount} active).`);
     }
   }
 
-  const topDone = [...bucketStats].sort((a, b) => b.done - a.done).filter(b => b.done > 0);
-  if (topDone.length >= 2) {
-    parts.push(`Quality areas with most progress: ${topDone[0].label} and ${topDone[1].label}.`);
-  }
-
+  // 3) Upcoming work
   const queued = bucketStats.filter(b => b.done === 0 && b.inProgress === 0 && b.total > 0);
   if (queued.length > 0) {
-    parts.push(`Upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
+    topBullets.push(`Upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
   }
 
-  return { summary: parts, shipped, active, needsDecision, significantEpics };
+  // ── PER-EPIC INSIGHT BULLETS ──
+  const epicInsights = significantEpics.map(epic => {
+    const epicTicket = epicTicketMap[epic.key];
+    const goal = firstSentences(epicTicket?.description);
+
+    // Synthesize focus from active child tickets
+    const activeChildren = epic.tickets.filter(t => ["In Progress", "In Review"].includes(t.status) && t.key !== epic.key);
+    const doneChildren = epic.tickets.filter(t => t.status === "Done" && t.key !== epic.key);
+    const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
+
+    const focusLines = [];
+    if (activeChildren.length > 0) {
+      const phrases = activeChildren.slice(0, 4).map(t => toGerundPhrase(t.summary));
+      focusLines.push(`Currently ${joinList(phrases)}.`);
+    }
+    if (doneChildren.length > 0) {
+      const phrases = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary));
+      focusLines.push(`Completed: ${joinList(phrases)}.`);
+    }
+    if (upcomingChildren.length > 0) {
+      const phrases = upcomingChildren.slice(0, 2).map(t => toGerundPhrase(t.summary));
+      focusLines.push(`Up next: ${joinList(phrases)}.`);
+    }
+
+    return { name: epic.name, key: epic.key, goal, focusLines, ticketCount: epic.tickets.length, doneCount: epic.doneCount, activeCount: epic.activeCount };
+  });
+
+  // ── ONE-OFF BUCKET NOTES ──
+  // Tickets in buckets but not in any significant epic
+  const significantEpicKeys = new Set(significantEpics.map(e => e.key));
+  const bucketOneOffs = [];
+  bucketStats.forEach(b => {
+    const orphans = dateFiltered.filter(t =>
+      t.bucket === b.label &&
+      t.issueType !== "Epic" &&
+      (!t.parentKey || !significantEpicKeys.has(t.parentKey))
+    );
+    if (orphans.length > 0 && orphans.length <= 3) {
+      const items = orphans.map(t => toGerundPhrase(t.summary));
+      bucketOneOffs.push(`In ${b.label}: ${joinList(items)}.`);
+    } else if (orphans.length > 3) {
+      const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary));
+      bucketOneOffs.push(`In ${b.label}: ${joinList(sample)}, and ${orphans.length - 2} more.`);
+    }
+  });
+
+  return { topBullets, epicInsights, bucketOneOffs, shipped, active, needsDecision, significantEpics };
 }
 
 // ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -477,7 +563,7 @@ export default function App() {
         const t = {
           key:        issue.key,
           summary:    issue.fields.summary,
-          description: descText ? descText.slice(0, 200) : null,
+          description: descText ? descText.slice(0, 300) : null,
           status:     issue.fields.status?.name || "Unknown",
           priority:   issue.fields.priority?.name || "None",
           assignee:   issue.fields.assignee?.displayName || null,
@@ -724,12 +810,45 @@ export default function App() {
               <p style={{ margin: 0, fontSize: 14, color: "#9ca3af" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                {/* Overview bullets */}
+                {/* Top bullets */}
                 <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 14, color: "#374151", lineHeight: 2, textAlign: "left" }}>
-                  {weeklyInsights.summary.map((s, i) => <li key={i}>{s}</li>)}
+                  {weeklyInsights.topBullets.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
 
-                {/* Epic rollups */}
+                {/* Per-epic insight bullets */}
+                {weeklyInsights.epicInsights?.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    {weeklyInsights.epicInsights.map(ei => (
+                      <div key={ei.key} style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: "#1e1b4b", marginBottom: 4 }}>
+                          <a href={`${JIRA_BASE_URL}/browse/${ei.key}`} target="_blank" rel="noopener noreferrer"
+                            style={{ color: "#7C3AED", textDecoration: "none", fontFamily: "monospace", fontSize: 12, fontWeight: 700, marginRight: 8 }}>{ei.key}</a>
+                          {ei.name}
+                          <span style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af", marginLeft: 8 }}>{ei.ticketCount} tickets · {ei.doneCount} done · {ei.activeCount} active</span>
+                        </div>
+                        {ei.goal && (
+                          <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.6, marginBottom: 6 }}>
+                            Goal: {ei.goal}
+                          </div>
+                        )}
+                        {ei.focusLines.length > 0 && (
+                          <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: "#374151", lineHeight: 1.9 }}>
+                            {ei.focusLines.map((line, i) => <li key={i}>{line}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* One-off bucket notes */}
+                {weeklyInsights.bucketOneOffs?.length > 0 && (
+                  <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 13, color: "#6b7280", lineHeight: 1.9 }}>
+                    {weeklyInsights.bucketOneOffs.map((note, i) => <li key={i}>{note}</li>)}
+                  </ul>
+                )}
+
+                {/* Key Epics cards */}
                 {weeklyInsights.significantEpics?.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
@@ -752,7 +871,6 @@ export default function App() {
                             style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "8px 12px", textDecoration: "none", fontSize: 13, lineHeight: 1.5 }}>
                             <span style={{ fontWeight: 700, color: "#22c55e", fontFamily: "monospace", flexShrink: 0 }}>{t.key}</span>
                             <span style={{ color: "#1e293b" }}>{t.summary}</span>
-                            {t.description && <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: "auto", flexShrink: 0, maxWidth: "40%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(t.description, 80)}</span>}
                           </a>
                         ))}
                       </div>
@@ -767,7 +885,6 @@ export default function App() {
                             style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "8px 12px", textDecoration: "none", fontSize: 13, lineHeight: 1.5 }}>
                             <span style={{ fontWeight: 700, color: "#3b82f6", fontFamily: "monospace", flexShrink: 0 }}>{t.key}</span>
                             <span style={{ color: "#1e293b" }}>{t.summary}</span>
-                            {t.description && <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: "auto", flexShrink: 0, maxWidth: "40%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(t.description, 80)}</span>}
                           </a>
                         ))}
                       </div>
@@ -782,7 +899,6 @@ export default function App() {
                             style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "8px 12px", textDecoration: "none", fontSize: 13, lineHeight: 1.5 }}>
                             <span style={{ fontWeight: 700, color: "#f59e0b", fontFamily: "monospace", flexShrink: 0 }}>{t.key}</span>
                             <span style={{ color: "#1e293b" }}>{t.summary}</span>
-                            {t.description && <span style={{ color: "#9ca3af", fontSize: 12, marginLeft: "auto", flexShrink: 0, maxWidth: "40%", textAlign: "right", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{truncate(t.description, 80)}</span>}
                           </a>
                         ))}
                       </div>
