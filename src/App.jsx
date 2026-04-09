@@ -192,7 +192,7 @@ function renderCell(colId, ticket, bucketRules) {
     case "ticket":
       return (
         <a href={`${JIRA_BASE_URL}/browse/${ticket.key}`} target="_blank" rel="noopener noreferrer"
-          style={{ color: "#3b82f6", textDecoration: "none", fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>
+          style={{ color: "#7C3AED", textDecoration: "none", fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>
           {ticket.key}
         </a>
       );
@@ -479,33 +479,36 @@ export default function App() {
   const missingCreds = !JIRA_EMAIL || !JIRA_TOKEN;
 
   return (
-    <div style={{ fontFamily: "'Inter','IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: "32px 40px", maxWidth: 1200, margin: "0 auto 0 0" }}>
+    <div style={{ fontFamily: "'Inter','IBM Plex Sans','Helvetica Neue',sans-serif", background: "#faf9fb", minHeight: "100vh", padding: "0", maxWidth: 1280, margin: "0 auto" }}>
 
       {/* ── HEADER ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500, letterSpacing: "0.04em" }}>QUALITY TRACKER</div>
-          </div>
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>Quality Work Dashboard</h1>
-          {lastFetched && (
-            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>
-              Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} · {bucketStats.length} areas · Sheet updated each cycle
+      <div style={{ background: "white", borderBottom: "1px solid #ede9f3", padding: "20px 32px", marginBottom: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ background: "#7C3AED", color: "white", borderRadius: 10, width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800 }}>Q</div>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1e1b4b", letterSpacing: "-0.01em" }}>Quality Work Dashboard</h1>
+              {lastFetched && (
+                <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 2 }}>
+                  Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} · {bucketStats.length} areas
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button onClick={() => setShowJql(v => !v)}
-            style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#64748b", transition: "all 0.15s" }}>
-            {showJql ? "Hide JQL" : "Edit JQL"}
-          </button>
-          <button onClick={fetchTickets} disabled={loading}
-            style={{ background: loading ? "#e2e8f0" : "#1e293b", color: loading ? "#94a3b8" : "white", border: "none", borderRadius: 10, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.15s" }}>
-            {loading ? "Syncing…" : "⟳ Sync from Jira"}
-          </button>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button onClick={() => setShowJql(v => !v)}
+              style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#6b7280", transition: "all 0.15s" }}>
+              {showJql ? "Hide JQL" : "Edit JQL"}
+            </button>
+            <button onClick={fetchTickets} disabled={loading}
+              style={{ background: loading ? "#e5e7eb" : "#7C3AED", color: loading ? "#9ca3af" : "white", border: "none", borderRadius: 20, padding: "8px 22px", fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.15s" }}>
+              {loading ? "Syncing…" : "⟳ Sync from Jira"}
+            </button>
+          </div>
         </div>
       </div>
+
+      <div style={{ padding: "0 32px 32px" }}>
 
       {/* ── PERIOD PICKER ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
@@ -514,11 +517,11 @@ export default function App() {
           <button key={p.key} onClick={() => setPeriodKey(p.key)}
             style={{
               padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              border: periodKey === p.key ? "1.5px solid #1e293b" : "1px solid #e2e8f0",
-              background: periodKey === p.key ? "#1e293b" : "white",
-              color: periodKey === p.key ? "white" : "#64748b",
+              border: periodKey === p.key ? "1.5px solid #7C3AED" : "1px solid #e5e7eb",
+              background: periodKey === p.key ? "#7C3AED" : "white",
+              color: periodKey === p.key ? "white" : "#6b7280",
               transition: "all 0.15s",
-              boxShadow: periodKey === p.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+              boxShadow: periodKey === p.key ? "0 2px 6px rgba(124,58,237,0.25)" : "none",
             }}>
             {p.label}
           </button>
@@ -548,8 +551,8 @@ export default function App() {
 
       {/* ── JQL EDITOR ── */}
       {showJql && (
-        <div style={{ background: "#1e293b", borderRadius: 14, padding: 20, marginBottom: 24 }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 10, letterSpacing: "0.05em" }}>JQL QUERY</div>
+        <div style={{ background: "#1e1b4b", borderRadius: 14, padding: 20, marginBottom: 24 }}>
+          <div style={{ fontSize: 12, color: "#a78bfa", fontWeight: 600, marginBottom: 10, letterSpacing: "0.05em" }}>JQL QUERY</div>
           <div style={{ display: "flex", gap: 10 }}>
             <input value={jql} onChange={e => setJql(e.target.value)} onKeyDown={e => e.key === "Enter" && fetchTickets()}
               style={{ flex: 1, background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px", color: "#94a3b8", fontSize: 13, fontFamily: "monospace", outline: "none" }} />
@@ -573,7 +576,7 @@ export default function App() {
         <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 16, padding: "56px 24px", textAlign: "center", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
           <div style={{ width: 220, height: 5, background: "#f1f5f9", borderRadius: 6, margin: "0 auto 20px", overflow: "hidden" }}>
             <div style={{
-              width: "40%", height: "100%", background: "#1e293b", borderRadius: 6,
+              width: "40%", height: "100%", background: "#7C3AED", borderRadius: 6,
               animation: "loading 1.2s ease-in-out infinite",
             }} />
           </div>
@@ -596,7 +599,7 @@ export default function App() {
         <>
           {/* ── SECTION 1: SUMMARY STATS ── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16, marginBottom: 32 }}>
-            <SummaryCard label="Total tickets"        value={dateFiltered.length} color="#0f172a" />
+            <SummaryCard label="Total tickets"        value={dateFiltered.length} color="#7C3AED" />
             <SummaryCard label="Shipped / done"       value={doneCount}           color="#22c55e" sub={dateFiltered.length ? `${Math.round(doneCount/dateFiltered.length*100)}% complete` : "—"} />
             <SummaryCard label="In progress"          value={activeCount}         color="#3b82f6" />
             <SummaryCard label="Needs investigation"  value={blockedCount}        color="#f59e0b" />
@@ -607,12 +610,12 @@ export default function App() {
           <div style={{ marginBottom: 32 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Quality Areas</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#1e1b4b" }}>Quality Areas</div>
                 <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout</div>
               </div>
               {filterBucket && (
                 <button onClick={() => setFilterBucket(null)}
-                  style={{ fontSize: 13, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                  style={{ fontSize: 13, color: "#7C3AED", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
                   ✕ Clear filter
                 </button>
               )}
@@ -693,7 +696,7 @@ export default function App() {
           {/* ── SECTION 4: TICKET TABLE ── */}
           <div style={{ background: "white", borderRadius: 16, border: "1px solid #f1f5f9", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#1e1b4b" }}>
                 All Tickets
                 {filterBucket && <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>— {filterBucket}</span>}
               </div>
@@ -719,13 +722,13 @@ export default function App() {
                       {ALL_COLUMNS.map(col => (
                         <label key={col.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 13, color: "#374151", cursor: "pointer", borderRadius: 6 }}>
                           <input type="checkbox" checked={!hiddenCols.has(col.id)} onChange={() => toggleColumn(col.id)}
-                            style={{ accentColor: "#1e293b" }} />
+                            style={{ accentColor: "#7C3AED" }} />
                           {col.label}
                         </label>
                       ))}
                       <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 6, paddingTop: 6 }}>
                         <button onClick={() => { setColumnOrder(DEFAULT_COL_ORDER); setHiddenCols(new Set()); localStorage.removeItem("sqt-col-order"); localStorage.removeItem("sqt-hidden-cols"); }}
-                          style={{ fontSize: 12, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 10px" }}>
+                          style={{ fontSize: 12, color: "#7C3AED", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 10px" }}>
                           Reset to default
                         </button>
                       </div>
@@ -738,7 +741,7 @@ export default function App() {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                  <tr style={{ background: "#f9f7fc", borderBottom: "1px solid #ede9f3" }}>
                     {visibleColumns.map(col => (
                       <th key={col.id}
                         draggable
@@ -768,6 +771,7 @@ export default function App() {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
