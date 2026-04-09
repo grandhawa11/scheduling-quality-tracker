@@ -382,8 +382,9 @@ function firstSentences(desc, max = 2) {
   return sentences.slice(0, max).join(" ").trim();
 }
 
-function generateWeeklyInsights(dateFiltered, bucketStats, period) {
+function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succinct") {
   if (!dateFiltered.length) return null;
+  const verbose = mode === "verbose";
 
   const byUpdated = (a, b) => new Date(b.updated) - new Date(a.updated);
 
@@ -425,19 +426,41 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
   const topBullets = [];
   const totalDone = dateFiltered.filter(t => t.status === "Done").length;
   const totalActive = dateFiltered.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
+  const totalBlocked = dateFiltered.filter(t => t.status === "Investigation Required").length;
+  const totalQueued = dateFiltered.filter(t => ["To Do", "Backlog"].includes(t.status)).length;
 
   // 1) Ticket counts
-  topBullets.push(`We have ${dateFiltered.length} tickets this period — ${totalDone} shipped and ${totalActive} in progress.`);
+  if (verbose) {
+    let countParts = [`${totalDone} shipped`, `${totalActive} in progress`];
+    if (totalBlocked > 0) countParts.push(`${totalBlocked} needing investigation`);
+    if (totalQueued > 0) countParts.push(`${totalQueued} queued`);
+    topBullets.push(`We have ${dateFiltered.length} tickets this period — ${joinList(countParts)}.`);
+  } else {
+    topBullets.push(`We have ${dateFiltered.length} tickets this period — ${totalDone} shipped and ${totalActive} in progress.`);
+  }
 
   // 2) Primary focus
   if (significantEpics.length > 0) {
     const top = significantEpics[0];
     const epicTicket = epicTicketMap[top.key];
     const goal = firstSentences(epicTicket?.description);
-    if (goal) {
-      topBullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets) — ${goal}`);
+    if (verbose) {
+      if (goal) {
+        topBullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets, ${top.doneCount} done, ${top.activeCount} active) — ${goal}`);
+      } else {
+        topBullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up — ${top.doneCount} shipped, ${top.activeCount} actively in progress, and ${top.tickets.length - top.doneCount - top.activeCount} queued.`);
+      }
+      // Mention secondary epics in verbose
+      if (significantEpics.length > 1) {
+        const others = significantEpics.slice(1).map(e => `${e.name} (${e.tickets.length} tickets)`);
+        topBullets.push(`We're also investing in ${joinList(others)}.`);
+      }
     } else {
-      topBullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
+      if (goal) {
+        topBullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets) — ${goal}`);
+      } else {
+        topBullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
+      }
     }
   }
 
@@ -449,6 +472,10 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
 
   // Per-epic insight bullets (label: detail format for bold splitting)
   const epicBullets = [];
+  const activeLimit = verbose ? 5 : 3;
+  const doneInlineLimit = verbose ? 5 : 3;
+  const upcomingLimit = verbose ? 3 : 2;
+
   significantEpics.forEach(epic => {
     const epicTicket = epicTicketMap[epic.key];
     const goal = firstSentences(epicTicket?.description);
@@ -458,19 +485,36 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
 
     const parts = [];
-    if (activeChildren.length > 0) {
-      const phrases = activeChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description));
-      parts.push(`we're ${joinList(phrases)}`);
+
+    // Verbose: lead with epic goal if available
+    if (verbose && goal) {
+      parts.push(`the goal is to ${goal.charAt(0).toLowerCase()}${goal.slice(1).replace(/\.$/, "")}`);
     }
-    if (doneChildren.length > 0 && doneChildren.length <= 3) {
+
+    if (activeChildren.length > 0) {
+      const shown = activeChildren.slice(0, activeLimit);
+      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description));
+      let activePart = `we're ${joinList(phrases)}`;
+      if (activeChildren.length > activeLimit) activePart += ` and ${activeChildren.length - activeLimit} more`;
+      parts.push(activePart);
+    }
+    if (doneChildren.length > 0 && doneChildren.length <= doneInlineLimit) {
       const phrases = doneChildren.map(t => toGerundPhrase(t.summary, t.description));
       parts.push(`we've completed ${joinList(phrases)}`);
-    } else if (doneChildren.length > 3) {
-      parts.push(`we've completed ${doneChildren.length} items`);
+    } else if (doneChildren.length > doneInlineLimit) {
+      if (verbose) {
+        const sample = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description));
+        parts.push(`we've completed ${doneChildren.length} items including ${joinList(sample)}`);
+      } else {
+        parts.push(`we've completed ${doneChildren.length} items`);
+      }
     }
     if (upcomingChildren.length > 0) {
-      const phrases = upcomingChildren.slice(0, 2).map(t => toGerundPhrase(t.summary, t.description));
-      parts.push(`up next we'll be ${joinList(phrases)}`);
+      const shown = upcomingChildren.slice(0, upcomingLimit);
+      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description));
+      let upPart = `up next we'll be ${joinList(phrases)}`;
+      if (verbose && upcomingChildren.length > upcomingLimit) upPart += ` and ${upcomingChildren.length - upcomingLimit} more`;
+      parts.push(upPart);
     }
 
     if (parts.length > 0) {
@@ -481,18 +525,21 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
   // One-off bucket notes (same level as top bullets)
   const oneOffBullets = [];
   const significantEpicKeys = new Set(significantEpics.map(e => e.key));
+  const orphanInlineLimit = verbose ? 4 : 3;
+  const orphanSampleLimit = verbose ? 3 : 2;
+
   bucketStats.forEach(b => {
     const orphans = dateFiltered.filter(t =>
       t.bucket === b.label &&
       t.issueType !== "Epic" &&
       (!t.parentKey || !significantEpicKeys.has(t.parentKey))
     );
-    if (orphans.length > 0 && orphans.length <= 3) {
+    if (orphans.length > 0 && orphans.length <= orphanInlineLimit) {
       const items = orphans.map(t => toGerundPhrase(t.summary, t.description));
       oneOffBullets.push(`In ${b.label}, we're ${joinList(items)}.`);
-    } else if (orphans.length > 3) {
-      const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary, t.description));
-      oneOffBullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - 2} more items.`);
+    } else if (orphans.length > orphanInlineLimit) {
+      const sample = orphans.slice(0, orphanSampleLimit).map(t => toGerundPhrase(t.summary, t.description));
+      oneOffBullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - orphanSampleLimit} more items.`);
     }
   });
 
@@ -667,7 +714,7 @@ export default function App() {
   const activeCount  = dateFiltered.filter(t => ["In Progress","In Review"].includes(t.status)).length;
   const blockedCount = dateFiltered.filter(t => t.status === "Investigation Required").length;
 
-  const weeklyInsights = useMemo(() => generateWeeklyInsights(dateFiltered, bucketStats, period), [dateFiltered, bucketStats, period]);
+  const weeklyInsights = useMemo(() => generateWeeklyInsights(dateFiltered, bucketStats, period, summaryMode), [dateFiltered, bucketStats, period, summaryMode]);
 
   const filtered = dateFiltered.filter(t => {
     const matchStatus = filterStatus === "All" || t.status === filterStatus;
@@ -881,13 +928,11 @@ export default function App() {
                       </ul>
                     </li>
                   )}
-                  {summaryMode === "verbose" && weeklyInsights.oneOffBullets.map((s, i) => <li key={`o${i}`}>{s}</li>)}
+                  {weeklyInsights.oneOffBullets.map((s, i) => <li key={`o${i}`}>{s}</li>)}
                 </ul>
 
-                {summaryMode === "verbose" && (
-                  <>
-                    {/* Key Epics cards */}
-                    {weeklyInsights.significantEpics?.length > 0 && (
+                {/* Key Epics cards */}
+                {weeklyInsights.significantEpics?.length > 0 && (
                       <div style={{ marginTop: 24, marginBottom: 20 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -942,9 +987,7 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                    </div>
-                  </>
-                )}
+                </div>
               </>
             )}
           </div>
