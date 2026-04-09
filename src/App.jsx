@@ -306,9 +306,17 @@ function truncate(str, max = 60) {
   return str.length > max ? str.slice(0, max) + "…" : str;
 }
 
-// Convert "Add X" → "adding X", "Fix Y" → "fixing Y", etc.
-function toGerundPhrase(summary) {
-  const s = summary.replace(/\[Quality\]\s*/gi, "").trim();
+// Clean a title: strip prefixes like "bE >", "FE >", "[Quality]", ticket keys
+function cleanTitle(raw) {
+  return raw
+    .replace(/\[.*?\]\s*/g, "")              // [Quality], [Scheduling], etc.
+    .replace(/^[a-zA-Z]{1,3}\s*>\s*/g, "")   // "bE >", "FE >", "BE >"
+    .replace(/^[A-Z]+-\d+\s*[-:>]?\s*/g, "") // "SB-1234 -" or "SB-1234:"
+    .trim();
+}
+
+// Try to apply gerund form to a phrase
+function applyGerund(s) {
   const verbs = [
     [/^Add\b/i,"adding"],[/^Update\b/i,"updating"],[/^Fix\b/i,"fixing"],[/^Create\b/i,"creating"],
     [/^Remove\b/i,"removing"],[/^Implement\b/i,"implementing"],[/^Validate\b/i,"validating"],
@@ -320,11 +328,42 @@ function toGerundPhrase(summary) {
     [/^Document\b/i,"documenting"],[/^Resolve\b/i,"resolving"],[/^Replace\b/i,"replacing"],
     [/^Audit\b/i,"auditing"],[/^Align\b/i,"aligning"],[/^Deprecate\b/i,"deprecating"],
     [/^Instrument\b/i,"instrumenting"],[/^Map\b/i,"mapping"],[/^Verify\b/i,"verifying"],
+    [/^Send\b/i,"sending"],[/^Move\b/i,"moving"],[/^Integrate\b/i,"integrating"],
+    [/^Support\b/i,"supporting"],[/^Handle\b/i,"handling"],[/^Identify\b/i,"identifying"],
+    [/^Consolidate\b/i,"consolidating"],[/^Standardize\b/i,"standardizing"],
+    [/^Introduce\b/i,"introducing"],[/^Automate\b/i,"automating"],
   ];
   for (const [pat, repl] of verbs) {
-    if (pat.test(s)) return s.replace(pat, repl);
+    if (pat.test(s)) return { text: s.replace(pat, repl), matched: true };
   }
-  return s.charAt(0).toLowerCase() + s.slice(1);
+  return { text: s, matched: false };
+}
+
+// Build a natural-language phrase from a ticket's summary + description.
+// Prefer description when the title is too technical; apply gerund form.
+function toGerundPhrase(summary, description) {
+  const title = cleanTitle(summary);
+
+  // Try description first — often more natural language
+  if (description) {
+    const firstSent = description.match(/^[^.!?]+/);
+    if (firstSent) {
+      const cleaned = cleanTitle(firstSent[0]).trim();
+      if (cleaned.length > 15 && cleaned.length < 140) {
+        const g = applyGerund(cleaned);
+        if (g.matched) return truncate(g.text, 80);
+        // Description sentence doesn't start with a verb — use it with "working on"
+        return "working on " + truncate(cleaned.charAt(0).toLowerCase() + cleaned.slice(1), 70);
+      }
+    }
+  }
+
+  // Fall back to cleaned title
+  const g = applyGerund(title);
+  if (g.matched) return truncate(g.text, 80);
+
+  // No verb match — wrap with "working on" to keep it natural
+  return "working on " + truncate(title.charAt(0).toLowerCase() + title.slice(1), 70);
 }
 
 function joinList(items) {
@@ -418,17 +457,17 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
 
     const parts = [];
     if (activeChildren.length > 0) {
-      const phrases = activeChildren.slice(0, 3).map(t => toGerundPhrase(t.summary));
+      const phrases = activeChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description));
       parts.push(`we're ${joinList(phrases)}`);
     }
     if (doneChildren.length > 0 && doneChildren.length <= 3) {
-      const phrases = doneChildren.map(t => toGerundPhrase(t.summary));
+      const phrases = doneChildren.map(t => toGerundPhrase(t.summary, t.description));
       parts.push(`we've completed ${joinList(phrases)}`);
     } else if (doneChildren.length > 3) {
       parts.push(`we've completed ${doneChildren.length} items`);
     }
     if (upcomingChildren.length > 0) {
-      const phrases = upcomingChildren.slice(0, 2).map(t => toGerundPhrase(t.summary));
+      const phrases = upcomingChildren.slice(0, 2).map(t => toGerundPhrase(t.summary, t.description));
       parts.push(`up next we'll be ${joinList(phrases)}`);
     }
 
@@ -447,10 +486,10 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
       (!t.parentKey || !significantEpicKeys.has(t.parentKey))
     );
     if (orphans.length > 0 && orphans.length <= 3) {
-      const items = orphans.map(t => toGerundPhrase(t.summary));
+      const items = orphans.map(t => toGerundPhrase(t.summary, t.description));
       oneOffBullets.push(`In ${b.label}, we're ${joinList(items)}.`);
     } else if (orphans.length > 3) {
-      const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary));
+      const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary, t.description));
       oneOffBullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - 2} more items.`);
     }
   });
