@@ -297,7 +297,7 @@ export default function App() {
 
       const prevKeys = new Set(tickets.map(t => t.key));
       const params   = new URLSearchParams({
-        jql, maxResults: 100,
+        jql,
         fields: "summary,status,priority,assignee,updated,customfield_10005",
       });
       const res = await fetch(`/api/jira?${params}`);
