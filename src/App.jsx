@@ -522,6 +522,7 @@ export default function App() {
   });
   const [showColMenu, setShowColMenu]   = useState(false);
   const [periodsExpanded, setPeriodsExpanded] = useState(false);
+  const [summaryMode, setSummaryMode]         = useState("succinct");
   const [dragCol, setDragCol]           = useState(null);
   const colMenuRef = useRef(null);
 
@@ -847,7 +848,23 @@ export default function App() {
           <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 14, padding: "24px 28px", marginBottom: 32, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <span style={{ fontSize: 18, fontWeight: 700, color: "#1e1b4b" }}>Period Summary</span>
-              <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>{period?.label || "All Time"}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex", background: "#f1f5f9", borderRadius: 8, padding: 2 }}>
+                  {["succinct", "verbose"].map(mode => (
+                    <button key={mode} onClick={() => setSummaryMode(mode)}
+                      style={{
+                        padding: "4px 12px", fontSize: 12, fontWeight: 600, borderRadius: 6, border: "none", cursor: "pointer", textTransform: "capitalize",
+                        background: summaryMode === mode ? "white" : "transparent",
+                        color: summaryMode === mode ? "#7C3AED" : "#9ca3af",
+                        boxShadow: summaryMode === mode ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                        transition: "all 0.15s",
+                      }}>
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+                <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>{period?.label || "All Time"}</span>
+              </div>
             </div>
             {!weeklyInsights ? (
               <p style={{ margin: 0, fontSize: 14, color: "#9ca3af" }}>Sync from Jira to generate insights.</p>
@@ -864,24 +881,26 @@ export default function App() {
                       </ul>
                     </li>
                   )}
-                  {weeklyInsights.oneOffBullets.map((s, i) => <li key={`o${i}`}>{s}</li>)}
+                  {summaryMode === "verbose" && weeklyInsights.oneOffBullets.map((s, i) => <li key={`o${i}`}>{s}</li>)}
                 </ul>
 
-                {/* Key Epics cards */}
-                {weeklyInsights.significantEpics?.length > 0 && (
-                  <div style={{ marginTop: 24, marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {weeklyInsights.significantEpics.map(epic => (
-                        <EpicCard key={epic.key} epic={epic} defaultOpen={weeklyInsights.significantEpics.length === 1} jiraBase={JIRA_BASE_URL} />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {summaryMode === "verbose" && (
+                  <>
+                    {/* Key Epics cards */}
+                    {weeklyInsights.significantEpics?.length > 0 && (
+                      <div style={{ marginTop: 24, marginBottom: 20 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          {weeklyInsights.significantEpics.map(epic => (
+                            <EpicCard key={epic.key} epic={epic} defaultOpen={weeklyInsights.significantEpics.length === 1} jiraBase={JIRA_BASE_URL} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                {/* Shipped / Active / Needs investigation */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {weeklyInsights.shipped.length > 0 && (
+                    {/* Shipped / Active / Needs investigation */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      {weeklyInsights.shipped.length > 0 && (
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#22c55e", textTransform: "uppercase", marginBottom: 8 }}>Shipped</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -923,7 +942,9 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
