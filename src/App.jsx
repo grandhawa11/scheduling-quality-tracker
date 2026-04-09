@@ -37,28 +37,26 @@ const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 
 function buildPeriodOptions() {
   const now = new Date();
+  const nowY = now.getFullYear();
+  const nowM = now.getMonth();
+  const ym = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
   const opts = [{ key: "all", label: "All Time" }];
   for (let i = 0; i < 12; i++) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    const y = d.getUTCFullYear();
-    const m = d.getUTCMonth();
-    opts.push({
-      key: `${y}-${String(m + 1).padStart(2, "0")}`,
-      label: `${MONTH_NAMES[m]}${y !== now.getUTCFullYear() ? " " + y : ""}`,
-      start: new Date(Date.UTC(y, m, 1)),
-      end: new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999)),
-    });
+    const d = new Date(nowY, nowM - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const key = ym(y, m);
+    opts.push({ key, label: `${MONTH_NAMES[m]}${y !== nowY ? " " + y : ""}`, startYM: key, endYM: key });
   }
-  for (const y of [now.getUTCFullYear(), now.getUTCFullYear() - 1]) {
+  for (const y of [nowY, nowY - 1]) {
     for (let q = 3; q >= 0; q--) {
       const sm = q * 3;
-      const start = new Date(Date.UTC(y, sm, 1));
-      if (start > now) continue;
+      if (new Date(y, sm, 1) > now) continue;
       opts.push({
         key: `Q${q + 1}-${y}`,
         label: `Q${q + 1} ${y} (${MONTH_NAMES[sm]}–${MONTH_NAMES[sm + 2]})`,
-        start,
-        end: new Date(Date.UTC(y, sm + 3, 0, 23, 59, 59, 999)),
+        startYM: ym(y, sm),
+        endYM: ym(y, sm + 2),
       });
     }
   }
@@ -337,9 +335,9 @@ export default function App() {
   const dateFiltered = useMemo(() => {
     if (!period || periodKey === "all") return tickets;
     return tickets.filter(t => {
-      if (!t.updated) return false;
-      const d = new Date(t.updated);
-      return d >= period.start && d <= period.end;
+      const ym = t.updated?.slice(0, 7); // "YYYY-MM" from Jira ISO string
+      if (!ym) return false;
+      return ym >= period.startYM && ym <= period.endYM;
     });
   }, [tickets, periodKey]);
 
