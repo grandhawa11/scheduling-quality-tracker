@@ -177,6 +177,47 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
   );
 }
 
+function EpicCard({ epic, defaultOpen, jiraBase }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ background: "#f9f7fc", border: "1px solid #ede9f3", borderRadius: 10, overflow: "hidden" }}>
+      <div onClick={() => setOpen(v => !v)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", cursor: "pointer" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14, color: "#7C3AED", transition: "transform 0.2s", display: "inline-block", transform: open ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
+          <a href={`${jiraBase}/browse/${epic.key}`} target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", fontFamily: "monospace", textDecoration: "none" }}>{epic.key}</a>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#1e1b4b" }}>{epic.name}</span>
+        </div>
+        {!open && <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>{epic.tickets.length} tickets</span>}
+      </div>
+      {open && (
+        <div style={{ padding: "0 16px 14px" }}>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+            {epic.tickets.length} tickets rolling up — {epic.doneCount} done, {epic.activeCount} in progress, {epic.tickets.length - epic.doneCount - epic.activeCount} queued
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {epic.tickets.slice(0, 6).map(t => (
+              <a key={t.key} href={`${jiraBase}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
+                title={t.description || t.summary}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5, borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4,
+                  background: t.status === "Done" ? "#f0fdf4" : ["In Progress", "In Review"].includes(t.status) ? "#eff6ff" : "#f9fafb",
+                  border: `1px solid ${t.status === "Done" ? "#bbf7d0" : ["In Progress", "In Review"].includes(t.status) ? "#bfdbfe" : "#e5e7eb"}`,
+                }}>
+                <span style={{ fontWeight: 700, fontFamily: "monospace", color: t.status === "Done" ? "#22c55e" : ["In Progress", "In Review"].includes(t.status) ? "#3b82f6" : "#9ca3af" }}>{t.key}</span>
+                <span style={{ color: "#374151" }}>{truncate(t.summary, 40)}</span>
+              </a>
+            ))}
+            {epic.tickets.length > 6 && <span style={{ fontSize: 11, color: "#9ca3af", padding: "3px 8px" }}>+{epic.tickets.length - 6} more</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TYPE_COLORS = {
   Epic: "#6366f1", Story: "#22c55e", Bug: "#ef4444", Task: "#3b82f6", "Sub-task": "#94a3b8",
 };
@@ -694,31 +735,7 @@ export default function App() {
                     <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#7C3AED", textTransform: "uppercase", marginBottom: 10 }}>Key Epics</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {weeklyInsights.significantEpics.map(epic => (
-                        <div key={epic.key} style={{ background: "#f9f7fc", border: "1px solid #ede9f3", borderRadius: 10, padding: "14px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                            <a href={`${JIRA_BASE_URL}/browse/${epic.key}`} target="_blank" rel="noopener noreferrer"
-                              style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED", fontFamily: "monospace", textDecoration: "none" }}>{epic.key}</a>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: "#1e1b4b" }}>{epic.name}</span>
-                          </div>
-                          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
-                            {epic.tickets.length} tickets rolling up — {epic.doneCount} done, {epic.activeCount} in progress, {epic.tickets.length - epic.doneCount - epic.activeCount} queued
-                          </div>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                            {epic.tickets.slice(0, 6).map(t => (
-                              <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                                title={t.description || t.summary}
-                                style={{
-                                  display: "inline-flex", alignItems: "center", gap: 5, borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4,
-                                  background: t.status === "Done" ? "#f0fdf4" : ["In Progress", "In Review"].includes(t.status) ? "#eff6ff" : "#f9fafb",
-                                  border: `1px solid ${t.status === "Done" ? "#bbf7d0" : ["In Progress", "In Review"].includes(t.status) ? "#bfdbfe" : "#e5e7eb"}`,
-                                }}>
-                                <span style={{ fontWeight: 700, fontFamily: "monospace", color: t.status === "Done" ? "#22c55e" : ["In Progress", "In Review"].includes(t.status) ? "#3b82f6" : "#9ca3af" }}>{t.key}</span>
-                                <span style={{ color: "#374151" }}>{truncate(t.summary, 40)}</span>
-                              </a>
-                            ))}
-                            {epic.tickets.length > 6 && <span style={{ fontSize: 11, color: "#9ca3af", padding: "3px 8px" }}>+{epic.tickets.length - 6} more</span>}
-                          </div>
-                        </div>
+                        <EpicCard key={epic.key} epic={epic} defaultOpen={weeklyInsights.significantEpics.length === 1} jiraBase={JIRA_BASE_URL} />
                       ))}
                     </div>
                   </div>
