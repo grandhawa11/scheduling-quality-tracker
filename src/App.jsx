@@ -387,7 +387,7 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
   const totalActive = dateFiltered.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
 
   // 1) Ticket counts
-  bullets.push(`${dateFiltered.length} tickets this period — ${totalDone} shipped, ${totalActive} in progress.`);
+  bullets.push(`We have ${dateFiltered.length} tickets this period — ${totalDone} shipped and ${totalActive} in progress.`);
 
   // 2) Primary focus
   if (significantEpics.length > 0) {
@@ -395,16 +395,16 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     const epicTicket = epicTicketMap[top.key];
     const goal = firstSentences(epicTicket?.description);
     if (goal) {
-      bullets.push(`Primary focus: ${top.name} (${top.tickets.length} tickets) — ${goal}`);
+      bullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets) — ${goal}`);
     } else {
-      bullets.push(`Primary focus: ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
+      bullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
     }
   }
 
   // 3) Upcoming work
   const queued = bucketStats.filter(b => b.done === 0 && b.inProgress === 0 && b.total > 0);
   if (queued.length > 0) {
-    bullets.push(`Upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
+    bullets.push(`We have upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
   }
 
   // Per-epic combined insight bullets
@@ -416,25 +416,25 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     const doneChildren = epic.tickets.filter(t => t.status === "Done" && t.key !== epic.key);
     const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
 
-    // Combine active + done into one sentence where possible
+    // Combine active + done into one sentence
     const parts = [];
     if (activeChildren.length > 0) {
       const phrases = activeChildren.slice(0, 3).map(t => toGerundPhrase(t.summary));
-      parts.push(`currently ${joinList(phrases)}`);
+      parts.push(`we're ${joinList(phrases)}`);
     }
     if (doneChildren.length > 0 && doneChildren.length <= 3) {
       const phrases = doneChildren.map(t => toGerundPhrase(t.summary));
-      parts.push(`already completed ${joinList(phrases)}`);
+      parts.push(`we've completed ${joinList(phrases)}`);
     } else if (doneChildren.length > 3) {
-      parts.push(`${doneChildren.length} items already completed`);
+      parts.push(`we've completed ${doneChildren.length} items`);
     }
     if (upcomingChildren.length > 0) {
       const phrases = upcomingChildren.slice(0, 2).map(t => toGerundPhrase(t.summary));
-      parts.push(`up next is ${joinList(phrases)}`);
+      parts.push(`up next we'll be ${joinList(phrases)}`);
     }
 
     if (parts.length > 0) {
-      bullets.push(`Within ${epic.name}: ${parts.join("; ")}.`);
+      bullets.push(`In ${epic.name}: ${parts.join("; ")}.`);
     }
   });
 
@@ -448,10 +448,10 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     );
     if (orphans.length > 0 && orphans.length <= 3) {
       const items = orphans.map(t => toGerundPhrase(t.summary));
-      bullets.push(`In ${b.label}: ${joinList(items)}.`);
+      bullets.push(`In ${b.label}, we're ${joinList(items)}.`);
     } else if (orphans.length > 3) {
       const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary));
-      bullets.push(`In ${b.label}: ${joinList(sample)}, and ${orphans.length - 2} more items.`);
+      bullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - 2} more items.`);
     }
   });
 
