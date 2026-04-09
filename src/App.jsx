@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 
 const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL || "https://joinhomebase.atlassian.net";
 const JIRA_EMAIL    = import.meta.env.VITE_JIRA_EMAIL    || "";
@@ -324,6 +324,16 @@ export default function App() {
   });
   const [showColMenu, setShowColMenu]   = useState(false);
   const [dragCol, setDragCol]           = useState(null);
+  const colMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!showColMenu) return;
+    const handleClick = (e) => {
+      if (colMenuRef.current && !colMenuRef.current.contains(e.target)) setShowColMenu(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showColMenu]);
 
   const visibleColumns = columnOrder.filter(id => !hiddenCols.has(id)).map(id => ALL_COLUMNS.find(c => c.id === id)).filter(Boolean);
 
@@ -693,7 +703,7 @@ export default function App() {
                   style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white", color: "#1e293b" }}>
                   {statuses.map(s => <option key={s}>{s}</option>)}
                 </select>
-                <div style={{ position: "relative" }}>
+                <div ref={colMenuRef} style={{ position: "relative" }}>
                   <button onClick={() => setShowColMenu(v => !v)}
                     style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, background: showColMenu ? "#f1f5f9" : "white", color: "#64748b", cursor: "pointer" }}>
                     Columns
