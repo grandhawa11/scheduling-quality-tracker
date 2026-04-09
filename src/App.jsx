@@ -381,13 +381,12 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     if (t.issueType === "Epic") epicTicketMap[t.key] = t;
   });
 
-  // ── BUILD FLAT BULLET LIST ──
-  const bullets = [];
+  const topBullets = [];
   const totalDone = dateFiltered.filter(t => t.status === "Done").length;
   const totalActive = dateFiltered.filter(t => ["In Progress", "In Review"].includes(t.status)).length;
 
   // 1) Ticket counts
-  bullets.push(`We have ${dateFiltered.length} tickets this period — ${totalDone} shipped and ${totalActive} in progress.`);
+  topBullets.push(`We have ${dateFiltered.length} tickets this period — ${totalDone} shipped and ${totalActive} in progress.`);
 
   // 2) Primary focus
   if (significantEpics.length > 0) {
@@ -395,19 +394,20 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     const epicTicket = epicTicketMap[top.key];
     const goal = firstSentences(epicTicket?.description);
     if (goal) {
-      bullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets) — ${goal}`);
+      topBullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets) — ${goal}`);
     } else {
-      bullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
+      topBullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up, ${top.doneCount} done and ${top.activeCount} actively in progress.`);
     }
   }
 
   // 3) Upcoming work
   const queued = bucketStats.filter(b => b.done === 0 && b.inProgress === 0 && b.total > 0);
   if (queued.length > 0) {
-    bullets.push(`We have upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
+    topBullets.push(`We have upcoming work queued in ${queued.map(q => q.label).join(", ")}.`);
   }
 
-  // Per-epic combined insight bullets
+  // Per-epic insight bullets (label: detail format for bold splitting)
+  const epicBullets = [];
   significantEpics.forEach(epic => {
     const epicTicket = epicTicketMap[epic.key];
     const goal = firstSentences(epicTicket?.description);
@@ -416,7 +416,6 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     const doneChildren = epic.tickets.filter(t => t.status === "Done" && t.key !== epic.key);
     const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
 
-    // Combine active + done into one sentence
     const parts = [];
     if (activeChildren.length > 0) {
       const phrases = activeChildren.slice(0, 3).map(t => toGerundPhrase(t.summary));
@@ -434,11 +433,12 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     }
 
     if (parts.length > 0) {
-      bullets.push(`In ${epic.name}: ${parts.join("; ")}.`);
+      epicBullets.push({ label: `In ${epic.name}`, detail: `${parts.join("; ")}.` });
     }
   });
 
-  // One-off bucket notes
+  // One-off bucket notes (same level as top bullets)
+  const oneOffBullets = [];
   const significantEpicKeys = new Set(significantEpics.map(e => e.key));
   bucketStats.forEach(b => {
     const orphans = dateFiltered.filter(t =>
@@ -448,14 +448,14 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period) {
     );
     if (orphans.length > 0 && orphans.length <= 3) {
       const items = orphans.map(t => toGerundPhrase(t.summary));
-      bullets.push(`In ${b.label}, we're ${joinList(items)}.`);
+      oneOffBullets.push(`In ${b.label}, we're ${joinList(items)}.`);
     } else if (orphans.length > 3) {
       const sample = orphans.slice(0, 2).map(t => toGerundPhrase(t.summary));
-      bullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - 2} more items.`);
+      oneOffBullets.push(`In ${b.label}, we're ${joinList(sample)}, plus ${orphans.length - 2} more items.`);
     }
   });
 
-  return { bullets, shipped, active, needsDecision, significantEpics };
+  return { topBullets, epicBullets, oneOffBullets, shipped, active, needsDecision, significantEpics };
 }
 
 // ── MAIN ─────────────────────────────────────────────────────────────────────
@@ -812,8 +812,18 @@ export default function App() {
               <p style={{ margin: 0, fontSize: 14, color: "#9ca3af" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                <ul style={{ margin: "0 0 20px", paddingLeft: 20, fontSize: 14, color: "#374151", lineHeight: 2, textAlign: "left" }}>
-                  {weeklyInsights.bullets.map((s, i) => <li key={i}>{s}</li>)}
+                <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "#374151", lineHeight: 2, textAlign: "left" }}>
+                  {weeklyInsights.topBullets.map((s, i) => <li key={i}>{s}</li>)}
+                  {weeklyInsights.epicBullets.length > 0 && (
+                    <li style={{ fontWeight: 700 }}>Epic Specific Summary:
+                      <ul style={{ margin: 0, paddingLeft: 20, fontWeight: 400 }}>
+                        {weeklyInsights.epicBullets.map((eb, i) => (
+                          <li key={i}><strong>{eb.label}:</strong> {eb.detail}</li>
+                        ))}
+                      </ul>
+                    </li>
+                  )}
+                  {weeklyInsights.oneOffBullets.map((s, i) => <li key={`o${i}`}>{s}</li>)}
                 </ul>
 
                 {/* Key Epics cards */}
