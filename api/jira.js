@@ -6,11 +6,14 @@ export default async function handler(req, res) {
 
   const fieldList = fields ? fields.split(",") : [];
   const PAGE_SIZE = 100;
-  let startAt = 0;
   let allIssues = [];
+  let nextPageToken = undefined;
 
-  // Paginate through all results
+  // Paginate through all results using cursor-based pagination
   while (true) {
+    const body = { jql, maxResults: PAGE_SIZE, fields: fieldList };
+    if (nextPageToken) body.nextPageToken = nextPageToken;
+
     const response = await fetch(
       `${process.env.VITE_JIRA_BASE_URL}/rest/api/3/search/jql`,
       {
@@ -20,12 +23,7 @@ export default async function handler(req, res) {
           Accept: "application/json",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          jql,
-          maxResults: PAGE_SIZE,
-          startAt,
-          fields: fieldList,
-        }),
+        body: JSON.stringify(body),
       }
     );
 
@@ -34,9 +32,9 @@ export default async function handler(req, res) {
 
     allIssues = allIssues.concat(data.issues || []);
 
-    // Stop if we've fetched all results
-    if (startAt + PAGE_SIZE >= data.total) break;
-    startAt += PAGE_SIZE;
+    // Stop if no more pages
+    if (!data.nextPageToken) break;
+    nextPageToken = data.nextPageToken;
   }
 
   res.status(200).json({ issues: allIssues, total: allIssues.length });
