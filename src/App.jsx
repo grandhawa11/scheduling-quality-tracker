@@ -39,26 +39,26 @@ function buildPeriodOptions() {
   const now = new Date();
   const opts = [{ key: "all", label: "All Time" }];
   for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const y = d.getFullYear();
-    const m = d.getMonth();
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
     opts.push({
       key: `${y}-${String(m + 1).padStart(2, "0")}`,
-      label: `${MONTH_NAMES[m]}${y !== now.getFullYear() ? " " + y : ""}`,
-      start: new Date(y, m, 1),
-      end: new Date(y, m + 1, 0, 23, 59, 59, 999),
+      label: `${MONTH_NAMES[m]}${y !== now.getUTCFullYear() ? " " + y : ""}`,
+      start: new Date(Date.UTC(y, m, 1)),
+      end: new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999)),
     });
   }
-  for (const y of [now.getFullYear(), now.getFullYear() - 1]) {
+  for (const y of [now.getUTCFullYear(), now.getUTCFullYear() - 1]) {
     for (let q = 3; q >= 0; q--) {
       const sm = q * 3;
-      const start = new Date(y, sm, 1);
+      const start = new Date(Date.UTC(y, sm, 1));
       if (start > now) continue;
       opts.push({
         key: `Q${q + 1}-${y}`,
         label: `Q${q + 1} ${y} (${MONTH_NAMES[sm]}–${MONTH_NAMES[sm + 2]})`,
         start,
-        end: new Date(y, sm + 3, 0, 23, 59, 59, 999),
+        end: new Date(Date.UTC(y, sm + 3, 0, 23, 59, 59, 999)),
       });
     }
   }
