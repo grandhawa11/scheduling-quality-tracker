@@ -72,8 +72,8 @@ function StatusBadge({ status }) {
   const cfg = STATUS_CONFIG[status] || { color: "#6b7280", bg: "#f9fafb", label: status };
   return (
     <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "2px 8px", borderRadius: 12, fontSize: 11,
+      display: "inline-flex", alignItems: "center", gap: 5,
+      padding: "4px 10px", borderRadius: 20, fontSize: 12,
       fontWeight: 600, color: cfg.color, background: cfg.bg,
       border: `1px solid ${cfg.color}22`, whiteSpace: "nowrap",
     }}>
@@ -84,15 +84,15 @@ function StatusBadge({ status }) {
 
 function PriorityIcon({ priority }) {
   const cfg = PRIORITY_CONFIG[priority] || { color: "#6b7280", icon: "·" };
-  return <span style={{ color: cfg.color, fontWeight: 700, fontSize: 12 }}>{cfg.icon}</span>;
+  return <span style={{ color: cfg.color, fontWeight: 700, fontSize: 14 }}>{cfg.icon}</span>;
 }
 
 function SummaryCard({ label, value, color, sub }) {
   return (
-    <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "14px 18px" }}>
-      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub}</div>}
+    <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 14, padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)" }}>
+      <div style={{ fontSize: 28, fontWeight: 800, color, letterSpacing: "-0.02em" }}>{value}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -105,11 +105,11 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
       onClick={onClick}
       style={{
         background: "white",
-        border: `1px solid ${active ? color : "#e2e8f0"}`,
-        borderRadius: 10,
+        border: `1px solid ${active ? color : "#f1f5f9"}`,
+        borderRadius: 14,
         cursor: "pointer",
-        transition: "border-color 0.15s, box-shadow 0.15s",
-        boxShadow: active ? `0 0 0 3px ${color}22` : "none",
+        transition: "all 0.2s ease",
+        boxShadow: active ? `0 0 0 3px ${color}22, 0 4px 12px rgba(0,0,0,0.06)` : "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)",
         overflow: "hidden",
         position: "relative",
       }}
@@ -117,43 +117,43 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
       {/* Accent bar */}
       <div style={{ height: 3, background: color, width: "100%" }} />
 
-      <div style={{ padding: "12px 14px" }}>
+      <div style={{ padding: "16px 18px" }}>
         {/* Top row: label + count */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", lineHeight: 1.3, maxWidth: "76%", paddingRight: 4 }}>{label}</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color, flexShrink: 0 }}>{total}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", lineHeight: 1.4, maxWidth: "76%", paddingRight: 4 }}>{label}</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color, flexShrink: 0, letterSpacing: "-0.02em" }}>{total}</div>
         </div>
 
         {/* Progress bar */}
-        <div style={{ background: "#f1f5f9", borderRadius: 4, height: 4, marginBottom: 8, overflow: "hidden" }}>
-          <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 4, transition: "width 0.4s" }} />
+        <div style={{ background: "#f1f5f9", borderRadius: 6, height: 5, marginBottom: 10, overflow: "hidden" }}>
+          <div style={{ width: `${pct}%`, background: color, height: "100%", borderRadius: 6, transition: "width 0.4s" }} />
         </div>
 
         {/* Stats row */}
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#64748b" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#64748b" }}>
           <span>{pct}% done</span>
           <span>{inProgress} active</span>
         </div>
 
         {/* Expandable detail */}
         {active && hasDetail && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${color}22` }}>
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${color}22` }}>
             {problem && (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Problem</div>
-                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{problem}</div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>Problem</div>
+                <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>{problem}</div>
               </div>
             )}
             {what_we_are_doing && (
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>What we're doing</div>
-                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{what_we_are_doing}</div>
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>What we're doing</div>
+                <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>{what_we_are_doing}</div>
               </div>
             )}
             {why_now && (
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 3 }}>Why now</div>
-                <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{why_now}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>Why now</div>
+                <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6 }}>{why_now}</div>
               </div>
             )}
           </div>
@@ -161,7 +161,7 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
 
         {/* Expand hint */}
         {!active && hasDetail && (
-          <div style={{ marginTop: 8, fontSize: 11, color: color, fontWeight: 500, opacity: 0.7 }}>Click to expand ↓</div>
+          <div style={{ marginTop: 10, fontSize: 12, color: color, fontWeight: 500, opacity: 0.7 }}>Click to expand ↓</div>
         )}
       </div>
     </div>
@@ -192,27 +192,27 @@ function renderCell(colId, ticket, bucketRules) {
     case "ticket":
       return (
         <a href={`${JIRA_BASE_URL}/browse/${ticket.key}`} target="_blank" rel="noopener noreferrer"
-          style={{ color: "#3b82f6", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "monospace" }}>
+          style={{ color: "#3b82f6", textDecoration: "none", fontSize: 13, fontWeight: 600, fontFamily: "monospace" }}>
           {ticket.key}
         </a>
       );
     case "summary":
       return (
         <>
-          <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.4 }}>{ticket.summary}</div>
-          {ticket.epic && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{ticket.epic}</div>}
+          <div style={{ fontSize: 14, color: "#1e293b", lineHeight: 1.5 }}>{ticket.summary}</div>
+          {ticket.epic && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 3 }}>{ticket.epic}</div>}
         </>
       );
     case "type":
-      return <span style={{ fontSize: 11, fontWeight: 600, color: typeColor }}>{ticket.issueType}</span>;
+      return <span style={{ fontSize: 12, fontWeight: 600, color: typeColor }}>{ticket.issueType}</span>;
     case "parent":
       return ticket.parentKey ? (
         <a href={`${JIRA_BASE_URL}/browse/${ticket.parentKey}`} target="_blank" rel="noopener noreferrer"
-          style={{ textDecoration: "none", fontSize: 11, color: "#64748b", lineHeight: 1.4 }}>
+          style={{ textDecoration: "none", fontSize: 12, color: "#64748b", lineHeight: 1.4 }}>
           <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#94a3b8" }}>{ticket.parentKey}</span>
           {ticket.parentName && <span style={{ marginLeft: 4 }}>{ticket.parentName.length > 30 ? ticket.parentName.slice(0, 30) + "…" : ticket.parentName}</span>}
         </a>
-      ) : <span style={{ fontSize: 11, color: "#d1d5db" }}>—</span>;
+      ) : <span style={{ fontSize: 12, color: "#d1d5db" }}>—</span>;
     case "area":
       return (
         <div style={{
@@ -225,15 +225,15 @@ function renderCell(colId, ticket, bucketRules) {
       return <StatusBadge status={ticket.status} />;
     case "priority":
       return (
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <PriorityIcon priority={ticket.priority} />
-          <span style={{ fontSize: 11, color: "#64748b" }}>{ticket.priority}</span>
+          <span style={{ fontSize: 13, color: "#64748b" }}>{ticket.priority}</span>
         </div>
       );
     case "assignee":
-      return <span style={{ fontSize: 11, color: "#94a3b8" }}>{ticket.assignee || "—"}</span>;
+      return <span style={{ fontSize: 13, color: "#64748b" }}>{ticket.assignee || "—"}</span>;
     case "updated":
-      return <span style={{ fontSize: 11, color: "#94a3b8" }}>
+      return <span style={{ fontSize: 13, color: "#94a3b8" }}>
         {ticket.updated ? new Date(ticket.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
       </span>;
     default: return null;
@@ -242,9 +242,9 @@ function renderCell(colId, ticket, bucketRules) {
 
 function TicketRow({ ticket, isNew, bucketRules, columns }) {
   return (
-    <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white" }}>
+    <tr style={{ borderBottom: "1px solid #f1f5f9", background: isNew ? "#fefce8" : "white", transition: "background 0.15s" }}>
       {columns.map(col => (
-        <td key={col.id} style={{ padding: "10px 12px", width: col.width }}>
+        <td key={col.id} style={{ padding: "14px 16px", width: col.width }}>
           {renderCell(col.id, ticket, bucketRules)}
         </td>
       ))}
@@ -479,45 +479,46 @@ export default function App() {
   const missingCreds = !JIRA_EMAIL || !JIRA_TOKEN;
 
   return (
-    <div style={{ fontFamily: "'IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: 24, maxWidth: 1200, margin: "0 auto 0 0" }}>
+    <div style={{ fontFamily: "'Inter','IBM Plex Sans','Helvetica Neue',sans-serif", background: "#f8fafc", minHeight: "100vh", padding: "32px 40px", maxWidth: 1200, margin: "0 auto 0 0" }}>
 
       {/* ── HEADER ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
-            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>QUALITY TRACKER</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <div style={{ background: "#1e293b", color: "white", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, letterSpacing: "0.05em" }}>SCHEDULING</div>
+            <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 500, letterSpacing: "0.04em" }}>QUALITY TRACKER</div>
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#0f172a" }}>Quality Work Dashboard</h1>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>Quality Work Dashboard</h1>
           {lastFetched && (
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+            <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>
               Last synced: {lastFetched.toLocaleTimeString()} · {dateFiltered.length} tickets{periodKey !== "all" ? ` in ${period?.label}` : ""} · {bucketStats.length} areas · Sheet updated each cycle
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <button onClick={() => setShowJql(v => !v)}
-            style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#64748b" }}>
+            style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#64748b", transition: "all 0.15s" }}>
             {showJql ? "Hide JQL" : "Edit JQL"}
           </button>
           <button onClick={fetchTickets} disabled={loading}
-            style={{ background: loading ? "#e2e8f0" : "#1e293b", color: loading ? "#94a3b8" : "white", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
+            style={{ background: loading ? "#e2e8f0" : "#1e293b", color: loading ? "#94a3b8" : "white", border: "none", borderRadius: 10, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", transition: "all 0.15s" }}>
             {loading ? "Syncing…" : "⟳ Sync from Jira"}
           </button>
         </div>
       </div>
 
       {/* ── PERIOD PICKER ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>Period:</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Period:</span>
         {PERIOD_OPTIONS.slice(0, 13).map(p => (
           <button key={p.key} onClick={() => setPeriodKey(p.key)}
             style={{
-              padding: "4px 12px", borderRadius: 16, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer",
               border: periodKey === p.key ? "1.5px solid #1e293b" : "1px solid #e2e8f0",
               background: periodKey === p.key ? "#1e293b" : "white",
               color: periodKey === p.key ? "white" : "#64748b",
               transition: "all 0.15s",
+              boxShadow: periodKey === p.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
             }}>
             {p.label}
           </button>
@@ -525,7 +526,7 @@ export default function App() {
         <select
           value={PERIOD_OPTIONS.findIndex(p => p.key === periodKey) >= 13 ? periodKey : ""}
           onChange={e => e.target.value && setPeriodKey(e.target.value)}
-          style={{ border: "1px solid #e2e8f0", borderRadius: 16, padding: "4px 8px", fontSize: 12, color: "#64748b", background: "white", outline: "none", cursor: "pointer" }}>
+          style={{ border: "1px solid #e2e8f0", borderRadius: 20, padding: "6px 12px", fontSize: 13, color: "#64748b", background: "white", outline: "none", cursor: "pointer" }}>
           <option value="">Quarters…</option>
           {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
             <option key={p.key} value={p.key}>{p.label}</option>
@@ -535,7 +536,7 @@ export default function App() {
 
       {/* ── CREDS WARNING ── */}
       {missingCreds && (
-        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#92400e" }}>
+        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 12, padding: "16px 20px", marginBottom: 20, fontSize: 14, color: "#92400e" }}>
           <strong>Setup required.</strong> Add in Vercel → Settings → Environment Variables:
           <ul style={{ margin: "8px 0 0", paddingLeft: 20, lineHeight: 1.9 }}>
             <li><code>VITE_JIRA_BASE_URL</code> = <code>https://joinhomebase.atlassian.net</code></li>
@@ -547,13 +548,13 @@ export default function App() {
 
       {/* ── JQL EDITOR ── */}
       {showJql && (
-        <div style={{ background: "#1e293b", borderRadius: 10, padding: 16, marginBottom: 20 }}>
-          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 8, letterSpacing: "0.05em" }}>JQL QUERY</div>
+        <div style={{ background: "#1e293b", borderRadius: 14, padding: 20, marginBottom: 24 }}>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 10, letterSpacing: "0.05em" }}>JQL QUERY</div>
           <div style={{ display: "flex", gap: 10 }}>
             <input value={jql} onChange={e => setJql(e.target.value)} onKeyDown={e => e.key === "Enter" && fetchTickets()}
-              style={{ flex: 1, background: "#0f172a", border: "1px solid #334155", borderRadius: 6, padding: "8px 12px", color: "#94a3b8", fontSize: 12, fontFamily: "monospace", outline: "none" }} />
+              style={{ flex: 1, background: "#0f172a", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px", color: "#94a3b8", fontSize: 13, fontFamily: "monospace", outline: "none" }} />
             <button onClick={fetchTickets} disabled={loading}
-              style={{ background: "#3b82f6", color: "white", border: "none", borderRadius: 6, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              style={{ background: "#3b82f6", color: "white", border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
               Run
             </button>
           </div>
@@ -562,39 +563,39 @@ export default function App() {
 
       {/* ── ERROR ── */}
       {error && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#dc2626" }}>
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "16px 20px", marginBottom: 20, fontSize: 14, color: "#dc2626" }}>
           <strong>Error:</strong> {error}
         </div>
       )}
 
       {/* ── LOADING ── */}
       {loading && (
-        <div style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 10, padding: "48px 24px", textAlign: "center", marginBottom: 16 }}>
-          <div style={{ width: 200, height: 4, background: "#f1f5f9", borderRadius: 4, margin: "0 auto 16px", overflow: "hidden" }}>
+        <div style={{ background: "white", border: "1px solid #f1f5f9", borderRadius: 16, padding: "56px 24px", textAlign: "center", marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+          <div style={{ width: 220, height: 5, background: "#f1f5f9", borderRadius: 6, margin: "0 auto 20px", overflow: "hidden" }}>
             <div style={{
-              width: "40%", height: "100%", background: "#1e293b", borderRadius: 4,
+              width: "40%", height: "100%", background: "#1e293b", borderRadius: 6,
               animation: "loading 1.2s ease-in-out infinite",
             }} />
           </div>
           <style>{`@keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }`}</style>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Syncing from Jira…</div>
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>Fetching all matching tickets</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#374151" }}>Syncing from Jira…</div>
+          <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>Fetching all matching tickets</div>
         </div>
       )}
 
       {/* ── EMPTY STATE ── */}
       {!loading && tickets.length === 0 && !error && (
-        <div style={{ background: "white", border: "2px dashed #e2e8f0", borderRadius: 12, padding: "48px 24px", textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>🎯</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#374151", marginBottom: 8 }}>No tickets loaded yet</div>
-          <div style={{ fontSize: 13, color: "#94a3b8" }}>Add your Jira credentials as Vercel env vars, then hit "Sync from Jira".</div>
+        <div style={{ background: "white", border: "2px dashed #e2e8f0", borderRadius: 16, padding: "64px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>🎯</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#374151", marginBottom: 8 }}>No tickets loaded yet</div>
+          <div style={{ fontSize: 14, color: "#94a3b8" }}>Add your Jira credentials as Vercel env vars, then hit "Sync from Jira".</div>
         </div>
       )}
 
       {tickets.length > 0 && (
         <>
           {/* ── SECTION 1: SUMMARY STATS ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16, marginBottom: 32 }}>
             <SummaryCard label="Total tickets"        value={dateFiltered.length} color="#0f172a" />
             <SummaryCard label="Shipped / done"       value={doneCount}           color="#22c55e" sub={dateFiltered.length ? `${Math.round(doneCount/dateFiltered.length*100)}% complete` : "—"} />
             <SummaryCard label="In progress"          value={activeCount}         color="#3b82f6" />
@@ -603,20 +604,20 @@ export default function App() {
           </div>
 
           {/* ── SECTION 2: BUCKET CARDS ── */}
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>Quality Areas</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>Quality Areas</div>
+                <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>Click a card to see context and filter tickets · Buckets updated each cycle from Signal Scout</div>
               </div>
               {filterBucket && (
                 <button onClick={() => setFilterBucket(null)}
-                  style={{ fontSize: 12, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                  style={{ fontSize: 13, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
                   ✕ Clear filter
                 </button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 16 }}>
               {bucketStats.map(b => (
                 <BucketCard
                   key={b.label}
@@ -629,26 +630,26 @@ export default function App() {
           </div>
 
           {/* ── SECTION 3: PERIOD SUMMARY ── */}
-          <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 10, padding: "14px 16px", marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.07em", color: "#92400e", textTransform: "uppercase" }}>Period summary</span>
-              <span style={{ fontSize: 11, color: "#78716c" }}>{period?.label || "All Time"}</span>
+          <div style={{ background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 14, padding: "20px 24px", marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.07em", color: "#92400e", textTransform: "uppercase" }}>Period summary</span>
+              <span style={{ fontSize: 13, color: "#78716c" }}>{period?.label || "All Time"}</span>
             </div>
             {!weeklyInsights ? (
-              <p style={{ margin: 0, fontSize: 13, color: "#78716c" }}>Sync from Jira to generate insights.</p>
+              <p style={{ margin: 0, fontSize: 14, color: "#78716c" }}>Sync from Jira to generate insights.</p>
             ) : (
               <>
-                <ul style={{ margin: "0 0 12px", paddingLeft: 18, fontSize: 13, color: "#1e293b", lineHeight: 1.8, textAlign: "left" }}>
+                <ul style={{ margin: "0 0 14px", paddingLeft: 20, fontSize: 14, color: "#1e293b", lineHeight: 1.9, textAlign: "left" }}>
                   {weeklyInsights.summary.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {weeklyInsights.shipped.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 6 }}>Shipped</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 8 }}>Shipped</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {weeklyInsights.shipped.map(t => (
                           <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4 }}>
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "5px 10px", textDecoration: "none", fontSize: 12, lineHeight: 1.4 }}>
                             <span style={{ fontWeight: 700, color: "#22c55e", fontFamily: "monospace" }}>{t.key}</span>
                             <span style={{ color: "#374151" }}>{t.summary}</span>
                           </a>
@@ -658,11 +659,11 @@ export default function App() {
                   )}
                   {weeklyInsights.active.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 6 }}>In progress</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 8 }}>In progress</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {weeklyInsights.active.map(t => (
                           <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4 }}>
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "5px 10px", textDecoration: "none", fontSize: 12, lineHeight: 1.4 }}>
                             <span style={{ fontWeight: 700, color: "#3b82f6", fontFamily: "monospace" }}>{t.key}</span>
                             <span style={{ color: "#374151" }}>{t.summary}</span>
                           </a>
@@ -672,11 +673,11 @@ export default function App() {
                   )}
                   {weeklyInsights.needsDecision.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 6 }}>Needs investigation</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", color: "#92400e", textTransform: "uppercase", marginBottom: 8 }}>Needs investigation</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {weeklyInsights.needsDecision.map(t => (
                           <a key={t.key} href={`${JIRA_BASE_URL}/browse/${t.key}`} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 6, padding: "3px 8px", textDecoration: "none", fontSize: 11, lineHeight: 1.4 }}>
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "5px 10px", textDecoration: "none", fontSize: 12, lineHeight: 1.4 }}>
                             <span style={{ fontWeight: 700, color: "#f59e0b", fontFamily: "monospace" }}>{t.key}</span>
                             <span style={{ color: "#374151" }}>{t.summary}</span>
                           </a>
@@ -690,48 +691,48 @@ export default function App() {
           </div>
 
           {/* ── SECTION 4: TICKET TABLE ── */}
-          <div style={{ background: "white", borderRadius: 10, border: "1px solid #e2e8f0", overflow: "hidden" }}>
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                All tickets
-                {filterBucket && <span style={{ fontSize: 12, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>— {filterBucket}</span>}
+          <div style={{ background: "white", borderRadius: 16, border: "1px solid #f1f5f9", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
+                All Tickets
+                {filterBucket && <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 8 }}>— {filterBucket}</span>}
               </div>
               <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search…"
-                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, outline: "none", width: 160, background: "white", color: "#1e293b" }} />
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 14px", fontSize: 13, outline: "none", width: 180, background: "white", color: "#1e293b" }} />
                 <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                  style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "white", color: "#1e293b" }}>
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 12px", fontSize: 13, outline: "none", background: "white", color: "#1e293b" }}>
                   {statuses.map(s => <option key={s}>{s}</option>)}
                 </select>
                 <div ref={colMenuRef} style={{ position: "relative" }}>
                   <button onClick={() => setShowColMenu(v => !v)}
-                    style={{ border: "1px solid #e2e8f0", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, background: showColMenu ? "#f1f5f9" : "white", color: "#64748b", cursor: "pointer" }}>
+                    style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 600, background: showColMenu ? "#f1f5f9" : "white", color: "#64748b", cursor: "pointer", transition: "all 0.15s" }}>
                     Columns
                   </button>
                   {showColMenu && (
                     <div style={{
-                      position: "absolute", top: "100%", right: 0, marginTop: 4, background: "white",
-                      border: "1px solid #e2e8f0", borderRadius: 8, padding: 8, zIndex: 20,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)", minWidth: 170,
+                      position: "absolute", top: "100%", right: 0, marginTop: 6, background: "white",
+                      border: "1px solid #e2e8f0", borderRadius: 12, padding: 10, zIndex: 20,
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 190,
                     }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.05em", padding: "4px 8px", textTransform: "uppercase" }}>Show / hide</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: "0.05em", padding: "6px 10px", textTransform: "uppercase" }}>Show / hide</div>
                       {ALL_COLUMNS.map(col => (
-                        <label key={col.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", fontSize: 12, color: "#374151", cursor: "pointer", borderRadius: 4 }}>
+                        <label key={col.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 13, color: "#374151", cursor: "pointer", borderRadius: 6 }}>
                           <input type="checkbox" checked={!hiddenCols.has(col.id)} onChange={() => toggleColumn(col.id)}
                             style={{ accentColor: "#1e293b" }} />
                           {col.label}
                         </label>
                       ))}
-                      <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 4, paddingTop: 4 }}>
+                      <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 6, paddingTop: 6 }}>
                         <button onClick={() => { setColumnOrder(DEFAULT_COL_ORDER); setHiddenCols(new Set()); localStorage.removeItem("sqt-col-order"); localStorage.removeItem("sqt-hidden-cols"); }}
-                          style={{ fontSize: 11, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 8px" }}>
+                          style={{ fontSize: 12, color: "#3b82f6", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "4px 10px" }}>
                           Reset to default
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-                <span style={{ fontSize: 11, color: "#94a3b8" }}>{filtered.length} of {dateFiltered.length}</span>
+                <span style={{ fontSize: 13, color: "#94a3b8" }}>{filtered.length} of {dateFiltered.length}</span>
               </div>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -745,20 +746,20 @@ export default function App() {
                         onDragOver={(e) => handleDragOver(e, col.id)}
                         onDragEnd={handleDragEnd}
                         style={{
-                          padding: "8px 12px", textAlign: "left", fontSize: 11, fontWeight: 700,
-                          color: "#64748b", letterSpacing: "0.04em", whiteSpace: "nowrap",
-                          cursor: "grab", userSelect: "none",
+                          padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 700,
+                          color: "#64748b", letterSpacing: "0.05em", whiteSpace: "nowrap",
+                          cursor: "grab", userSelect: "none", textTransform: "uppercase",
                           background: dragCol === col.id ? "#e2e8f0" : "transparent",
                           transition: "background 0.15s",
                         }}>
-                        <span style={{ opacity: 0.35, marginRight: 4, fontSize: 10 }}>⠿</span>{col.label}
+                        <span style={{ opacity: 0.3, marginRight: 5, fontSize: 11 }}>⠿</span>{col.label}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0
-                    ? <tr><td colSpan={visibleColumns.length} style={{ padding: 32, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No tickets match your filters</td></tr>
+                    ? <tr><td colSpan={visibleColumns.length} style={{ padding: 48, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>No tickets match your filters</td></tr>
                     : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} columns={visibleColumns} />)
                   }
                 </tbody>
