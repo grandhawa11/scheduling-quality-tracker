@@ -174,8 +174,8 @@ const TYPE_COLORS = {
 
 const ALL_COLUMNS = [
   { id: "ticket",   label: "Ticket",         width: 100 },
-  { id: "summary",  label: "Summary / Epic", width: undefined },
   { id: "type",     label: "Type",           width: 70 },
+  { id: "summary",  label: "Summary / Epic", width: undefined },
   { id: "parent",   label: "Parent",         width: 140 },
   { id: "area",     label: "Area",           width: 40 },
   { id: "status",   label: "Status",         width: 160 },
@@ -741,7 +741,7 @@ export default function App() {
                           background: dragCol === col.id ? "#e2e8f0" : "transparent",
                           transition: "background 0.15s",
                         }}>
-                        {col.label}
+                        <span style={{ opacity: 0.35, marginRight: 4, fontSize: 10 }}>⠿</span>{col.label}
                       </th>
                     ))}
                   </tr>
