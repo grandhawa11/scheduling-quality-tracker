@@ -351,6 +351,7 @@ export default function App() {
     try { return new Set(JSON.parse(localStorage.getItem("sqt-hidden-cols")) || []); } catch { return new Set(); }
   });
   const [showColMenu, setShowColMenu]   = useState(false);
+  const [periodsExpanded, setPeriodsExpanded] = useState(false);
   const [dragCol, setDragCol]           = useState(null);
   const colMenuRef = useRef(null);
 
@@ -543,7 +544,7 @@ export default function App() {
       {/* ── PERIOD PICKER ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Period:</span>
-        {PERIOD_OPTIONS.slice(0, 13).map(p => (
+        {PERIOD_OPTIONS.slice(0, periodsExpanded ? 13 : 5).map(p => (
           <button key={p.key} onClick={() => setPeriodKey(p.key)}
             style={{
               padding: "6px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: "pointer",
@@ -556,15 +557,25 @@ export default function App() {
             {p.label}
           </button>
         ))}
-        <select
-          value={PERIOD_OPTIONS.findIndex(p => p.key === periodKey) >= 13 ? periodKey : ""}
-          onChange={e => e.target.value && setPeriodKey(e.target.value)}
-          style={{ border: "1px solid #e2e8f0", borderRadius: 20, padding: "6px 12px", fontSize: 13, color: "#64748b", background: "white", outline: "none", cursor: "pointer" }}>
-          <option value="">Quarters…</option>
-          {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
-            <option key={p.key} value={p.key}>{p.label}</option>
-          ))}
-        </select>
+        <button onClick={() => setPeriodsExpanded(v => !v)}
+          style={{
+            width: 30, height: 30, borderRadius: "50%", border: "1px solid #e5e7eb", background: "white",
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, color: "#6b7280", transition: "all 0.2s", transform: periodsExpanded ? "rotate(180deg)" : "rotate(0deg)",
+          }}>
+          ›
+        </button>
+        {periodsExpanded && (
+          <select
+            value={PERIOD_OPTIONS.findIndex(p => p.key === periodKey) >= 13 ? periodKey : ""}
+            onChange={e => e.target.value && setPeriodKey(e.target.value)}
+            style={{ border: "1px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 13, color: "#6b7280", background: "white", outline: "none", cursor: "pointer" }}>
+            <option value="">Quarters…</option>
+            {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* ── CREDS WARNING ── */}
