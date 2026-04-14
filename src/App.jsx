@@ -52,6 +52,7 @@ function buildPeriodOptions() {
   const nowM = now.getMonth();
   const ym = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
   const opts = [{ key: "all", label: "All Time" }];
+  // Current + 12 past months
   for (let i = 0; i < 12; i++) {
     const d = new Date(nowY, nowM - i, 1);
     const y = d.getFullYear();
@@ -59,6 +60,15 @@ function buildPeriodOptions() {
     const key = ym(y, m);
     opts.push({ key, label: `${MONTH_NAMES[m]}${y !== nowY ? " " + y : ""}`, startYM: key, endYM: key });
   }
+  // 6 future months (after current)
+  for (let i = 1; i <= 6; i++) {
+    const d = new Date(nowY, nowM + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const key = ym(y, m);
+    opts.push({ key, label: `${MONTH_NAMES[m]}${y !== nowY ? " " + y : ""}`, startYM: key, endYM: key, future: true });
+  }
+  // Quarters
   for (const y of [nowY, nowY - 1]) {
     for (let q = 3; q >= 0; q--) {
       const sm = q * 3;
@@ -668,7 +678,7 @@ export default function App() {
       const prevKeys = new Set(tickets.map(t => t.key));
       const params   = new URLSearchParams({
         jql,
-        fields: "summary,status,priority,assignee,updated,customfield_10005,issuetype,parent,description",
+        fields: "summary,status,priority,assignee,updated,duedate,customfield_10005,issuetype,parent,description",
       });
       const res = await fetch(`/api/jira?${params}`);
       if (!res.ok) {
@@ -689,6 +699,7 @@ export default function App() {
           assignee:   issue.fields.assignee?.displayName || null,
           epic:       issue.fields.customfield_10005 || null,
           updated:    issue.fields.updated,
+          duedate:    issue.fields.duedate || null,
           issueType:  typeName,
           parentKey:  isEpic ? issue.key : (issue.fields.parent?.key || null),
           parentName: isEpic ? issue.fields.summary : (issue.fields.parent?.fields?.summary || null),
@@ -712,9 +723,11 @@ export default function App() {
   const dateFiltered = useMemo(() => {
     if (!period || periodKey === "all") return tickets;
     return tickets.filter(t => {
-      const ym = t.updated?.slice(0, 7); // "YYYY-MM" from Jira ISO string
-      if (!ym) return false;
-      return ym >= period.startYM && ym <= period.endYM;
+      const updatedYM = t.updated?.slice(0, 7);
+      const dueYM = t.duedate?.slice(0, 7);
+      const updatedMatch = updatedYM && updatedYM >= period.startYM && updatedYM <= period.endYM;
+      const dueMatch = dueYM && dueYM >= period.startYM && dueYM <= period.endYM;
+      return updatedMatch || dueMatch;
     });
   }, [tickets, periodKey]);
 
@@ -809,10 +822,17 @@ export default function App() {
             value={PERIOD_OPTIONS.findIndex(p => p.key === periodKey) >= 13 ? periodKey : ""}
             onChange={e => e.target.value && setPeriodKey(e.target.value)}
             style={{ border: "1px solid #e5e7eb", borderRadius: 20, padding: "6px 12px", fontSize: 13, color: "#6b7280", background: "white", outline: "none", cursor: "pointer", flexShrink: 0 }}>
-            <option value="">Quarters…</option>
-            {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
-              <option key={p.key} value={p.key}>{p.label}</option>
-            ))}
+            <option value="">More…</option>
+            <optgroup label="Future">
+              {PERIOD_OPTIONS.filter(p => p.future).map(p => (
+                <option key={p.key} value={p.key}>{p.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Quarters">
+              {PERIOD_OPTIONS.filter(p => p.key.startsWith("Q")).map(p => (
+                <option key={p.key} value={p.key}>{p.label}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
         <button onClick={() => setPeriodsExpanded(v => !v)}
