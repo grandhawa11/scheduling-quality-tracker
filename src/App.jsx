@@ -4,7 +4,9 @@ const JIRA_BASE_URL = import.meta.env.VITE_JIRA_BASE_URL || "https://joinhomebas
 const JIRA_EMAIL    = import.meta.env.VITE_JIRA_EMAIL    || "";
 const JIRA_TOKEN    = import.meta.env.VITE_JIRA_API_TOKEN || "";
 
-const DEFAULT_JQL =
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const SHEET_ID   = URL_PARAMS.get("sheet") || "";
+const DEFAULT_JQL = URL_PARAMS.get("jql") ||
   'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
 
 // Extract plain text from Jira ADF (Atlassian Document Format) description
@@ -632,7 +634,8 @@ export default function App() {
 
   const fetchBuckets = useCallback(async () => {
     try {
-      const res = await fetch("/api/buckets");
+      const bucketUrl = SHEET_ID ? `/api/buckets?sheet=${SHEET_ID}` : "/api/buckets";
+      const res = await fetch(bucketUrl);
       if (res.ok) {
         const data = await res.json();
         setBucketRules(data);

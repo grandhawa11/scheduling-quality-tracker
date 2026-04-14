@@ -1,6 +1,9 @@
+const DEFAULT_SHEET_ID = "1nVVNwpjClt_kXHnSa99xje9esTqjMq8zeHdGauQdjuc";
+
 export default async function handler(req, res) {
+  const sheetId = req.query.sheet || DEFAULT_SHEET_ID;
   const CSV_URL =
-    "https://docs.google.com/spreadsheets/d/1nVVNwpjClt_kXHnSa99xje9esTqjMq8zeHdGauQdjuc/export?format=csv";
+    `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
   const response = await fetch(CSV_URL);
   if (!response.ok) return res.status(500).json({ error: "Failed to fetch bucket config" });
