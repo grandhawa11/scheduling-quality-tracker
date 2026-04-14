@@ -752,7 +752,7 @@ export default function App() {
   const missingCreds = !JIRA_EMAIL || !JIRA_TOKEN;
 
   return (
-    <div style={{ fontFamily: "'Montserrat','Inter','Helvetica Neue',sans-serif", background: "#faf9fb", minHeight: "100vh", padding: "0", maxWidth: 1280, margin: "0 auto" }}>
+    <div style={{ fontFamily: "'Montserrat','Inter','Helvetica Neue',sans-serif", background: "#faf9fb", minHeight: "100vh", padding: "0" }}>
 
       {/* ── HEADER ── */}
       <div style={{ background: "white", borderBottom: "1px solid #ede9f3", padding: "20px 32px", marginBottom: 28 }}>
@@ -781,7 +781,7 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ padding: "0 32px 32px" }}>
+      <div style={{ padding: "0 clamp(24px, 3vw, 64px) 32px" }}>
 
       {/* ── PERIOD PICKER ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 28 }}>
