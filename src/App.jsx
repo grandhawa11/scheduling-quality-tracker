@@ -878,7 +878,7 @@ export default function App() {
         <div style={{ background: "white", border: "2px dashed #e2e8f0", borderRadius: 16, padding: "64px 24px", textAlign: "center" }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>🎯</div>
           <div style={{ fontSize: 18, fontWeight: 700, color: "#374151", marginBottom: 8 }}>No tickets loaded yet</div>
-          <div style={{ fontSize: 14, color: "#94a3b8" }}>Add your Jira credentials as Vercel env vars, then hit "Sync from Jira".</div>
+          <div style={{ fontSize: 14, color: "#94a3b8" }}>Hit "Sync from Jira" to get started.</div>
         </div>
       )}
 
