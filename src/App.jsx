@@ -576,7 +576,11 @@ export default function App() {
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState(null);
   const [lastFetched, setLastFetched]   = useState(null);
-  const [jql, setJql]                   = useState(DEFAULT_JQL);
+  const [jql, _setJql]                  = useState(() => {
+    const saved = localStorage.getItem("sqt-jql");
+    return saved || DEFAULT_JQL;
+  });
+  const setJql = (v) => { _setJql(v); localStorage.setItem("sqt-jql", typeof v === "function" ? v(jql) : v); };
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterBucket, setFilterBucket] = useState(null);
   const [search, setSearch]             = useState("");
