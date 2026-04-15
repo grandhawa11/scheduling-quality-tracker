@@ -453,6 +453,7 @@ function firstSentences(desc, max = 2) {
 function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succinct") {
   if (!dateFiltered.length) return null;
   const verbose = mode === "verbose";
+  const isFuture = period?.future === true;
 
   const byUpdated = (a, b) => new Date(b.updated) - new Date(a.updated);
 
@@ -481,9 +482,21 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
     if (t.status === "Done") epicGroups[t.parentKey].doneCount++;
     if (["In Progress", "In Review"].includes(t.status)) epicGroups[t.parentKey].activeCount++;
   });
+
+  // For future periods, include any epic with ≥1 ticket (they won't have many children in the filtered set)
+  const epicThreshold = isFuture ? 0 : 3;
   const significantEpics = Object.values(epicGroups)
-    .filter(g => g.tickets.length > 3)
+    .filter(g => g.tickets.length > epicThreshold)
     .sort((a, b) => b.tickets.length - a.tickets.length);
+
+  // Also include standalone epic tickets that didn't group (e.g. epic with no children in this period)
+  if (isFuture) {
+    dateFiltered.forEach(t => {
+      if (t.issueType === "Epic" && !epicGroups[t.key]) {
+        significantEpics.push({ name: t.summary, key: t.key, tickets: [t], doneCount: 0, activeCount: 0 });
+      }
+    });
+  }
 
   // Find the epic ticket itself (for its description)
   const epicTicketMap = {};
@@ -498,7 +511,17 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
   const totalQueued = dateFiltered.filter(t => ["To Do", "Backlog"].includes(t.status)).length;
 
   // 1) Ticket counts
-  if (verbose) {
+  if (isFuture) {
+    const epicCount = dateFiltered.filter(t => t.issueType === "Epic").length;
+    const nonEpic = dateFiltered.length - epicCount;
+    if (epicCount > 0 && nonEpic > 0) {
+      topBullets.push(`We have ${dateFiltered.length} items planned this period — ${epicCount} epics and ${nonEpic} tickets.`);
+    } else if (epicCount > 0) {
+      topBullets.push(`We have ${epicCount} epic${epicCount > 1 ? "s" : ""} planned for this period.`);
+    } else {
+      topBullets.push(`We have ${dateFiltered.length} tickets planned for this period.`);
+    }
+  } else if (verbose) {
     let countParts = [`${totalDone} shipped`, `${totalActive} in progress`];
     if (totalBlocked > 0) countParts.push(`${totalBlocked} needing investigation`);
     if (totalQueued > 0) countParts.push(`${totalQueued} queued`);
@@ -507,18 +530,27 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
     topBullets.push(`We have ${dateFiltered.length} tickets this period — ${totalDone} shipped and ${totalActive} in progress.`);
   }
 
-  // 2) Primary focus
+  // 2) Primary focus / planned initiatives
   if (significantEpics.length > 0) {
     const top = significantEpics[0];
     const epicTicket = epicTicketMap[top.key];
     const goal = firstSentences(epicTicket?.description);
-    if (verbose) {
+    if (isFuture) {
+      if (goal) {
+        topBullets.push(`We're planning to focus on ${top.name} — ${goal}`);
+      } else {
+        topBullets.push(`We're planning to focus on ${top.name}.`);
+      }
+      if (significantEpics.length > 1) {
+        const others = significantEpics.slice(1).map(e => e.name);
+        topBullets.push(`We also have ${joinList(others)} planned.`);
+      }
+    } else if (verbose) {
       if (goal) {
         topBullets.push(`Our primary focus is ${top.name} (${top.tickets.length} tickets, ${top.doneCount} done, ${top.activeCount} active) — ${goal}`);
       } else {
         topBullets.push(`Our primary focus is ${top.name} with ${top.tickets.length} tickets rolling up — ${top.doneCount} shipped, ${top.activeCount} actively in progress, and ${top.tickets.length - top.doneCount - top.activeCount} queued.`);
       }
-      // Mention secondary epics in verbose
       if (significantEpics.length > 1) {
         const others = significantEpics.slice(1).map(e => `${e.name} (${e.tickets.length} tickets)`);
         topBullets.push(`We're also investing in ${joinList(others)}.`);
@@ -548,45 +580,58 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
     const epicTicket = epicTicketMap[epic.key];
     const goal = firstSentences(epicTicket?.description);
 
-    const activeChildren = epic.tickets.filter(t => ["In Progress", "In Review"].includes(t.status) && t.key !== epic.key);
-    const doneChildren = epic.tickets.filter(t => t.status === "Done" && t.key !== epic.key);
-    const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
-
-    const parts = [];
-
-    // Verbose: lead with epic goal if available
-    if (verbose && goal) {
-      parts.push(`the goal is to ${goal.charAt(0).toLowerCase()}${goal.slice(1).replace(/\.$/, "")}`);
-    }
-
-    if (activeChildren.length > 0) {
-      const shown = activeChildren.slice(0, activeLimit);
-      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description, verbose));
-      let activePart = `we're ${joinList(phrases)}`;
-      if (activeChildren.length > activeLimit) activePart += ` and ${activeChildren.length - activeLimit} more`;
-      parts.push(activePart);
-    }
-    if (doneChildren.length > 0 && doneChildren.length <= doneInlineLimit) {
-      const phrases = doneChildren.map(t => toGerundPhrase(t.summary, t.description, verbose));
-      parts.push(`we've completed ${joinList(phrases)}`);
-    } else if (doneChildren.length > doneInlineLimit) {
-      if (verbose) {
-        const sample = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description, verbose));
-        parts.push(`we've completed ${doneChildren.length} items including ${joinList(sample)}`);
-      } else {
-        parts.push(`we've completed ${doneChildren.length} items`);
+    if (isFuture) {
+      // Future periods: describe what's planned, using the epic description
+      const parts = [];
+      if (goal) {
+        parts.push(`we're planning to ${goal.charAt(0).toLowerCase()}${goal.slice(1).replace(/\.$/, "")}`);
       }
-    }
-    if (upcomingChildren.length > 0) {
-      const shown = upcomingChildren.slice(0, upcomingLimit);
-      const phrases = shown.map(t => toGerundPhrase(t.summary, t.description, verbose));
-      let upPart = `up next we'll be ${joinList(phrases)}`;
-      if (verbose && upcomingChildren.length > upcomingLimit) upPart += ` and ${upcomingChildren.length - upcomingLimit} more`;
-      parts.push(upPart);
-    }
+      const childCount = epic.tickets.filter(t => t.key !== epic.key).length;
+      if (childCount > 0) {
+        parts.push(`${childCount} ticket${childCount > 1 ? "s" : ""} scoped so far`);
+      }
+      epicBullets.push({ label: `In ${epic.name}`, detail: parts.length > 0 ? `${parts.join("; ")}.` : "planned for this period." });
+    } else {
+      const activeChildren = epic.tickets.filter(t => ["In Progress", "In Review"].includes(t.status) && t.key !== epic.key);
+      const doneChildren = epic.tickets.filter(t => t.status === "Done" && t.key !== epic.key);
+      const upcomingChildren = epic.tickets.filter(t => ["To Do", "Backlog"].includes(t.status));
 
-    if (parts.length > 0) {
-      epicBullets.push({ label: `In ${epic.name}`, detail: `${parts.join("; ")}.` });
+      const parts = [];
+
+      // Verbose: lead with epic goal if available
+      if (verbose && goal) {
+        parts.push(`the goal is to ${goal.charAt(0).toLowerCase()}${goal.slice(1).replace(/\.$/, "")}`);
+      }
+
+      if (activeChildren.length > 0) {
+        const shown = activeChildren.slice(0, activeLimit);
+        const phrases = shown.map(t => toGerundPhrase(t.summary, t.description, verbose));
+        let activePart = `we're ${joinList(phrases)}`;
+        if (activeChildren.length > activeLimit) activePart += ` and ${activeChildren.length - activeLimit} more`;
+        parts.push(activePart);
+      }
+      if (doneChildren.length > 0 && doneChildren.length <= doneInlineLimit) {
+        const phrases = doneChildren.map(t => toGerundPhrase(t.summary, t.description, verbose));
+        parts.push(`we've completed ${joinList(phrases)}`);
+      } else if (doneChildren.length > doneInlineLimit) {
+        if (verbose) {
+          const sample = doneChildren.slice(0, 3).map(t => toGerundPhrase(t.summary, t.description, verbose));
+          parts.push(`we've completed ${doneChildren.length} items including ${joinList(sample)}`);
+        } else {
+          parts.push(`we've completed ${doneChildren.length} items`);
+        }
+      }
+      if (upcomingChildren.length > 0) {
+        const shown = upcomingChildren.slice(0, upcomingLimit);
+        const phrases = shown.map(t => toGerundPhrase(t.summary, t.description, verbose));
+        let upPart = `up next we'll be ${joinList(phrases)}`;
+        if (verbose && upcomingChildren.length > upcomingLimit) upPart += ` and ${upcomingChildren.length - upcomingLimit} more`;
+        parts.push(upPart);
+      }
+
+      if (parts.length > 0) {
+        epicBullets.push({ label: `In ${epic.name}`, detail: `${parts.join("; ")}.` });
+      }
     }
   });
 
