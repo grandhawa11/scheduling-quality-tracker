@@ -6,8 +6,13 @@ const JIRA_TOKEN    = import.meta.env.VITE_JIRA_API_TOKEN || "";
 
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const SHEET_ID   = URL_PARAMS.get("sheet") || "";
-const MY_JQL     = 'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
-const DEFAULT_JQL = URL_PARAMS.get("jql") || (SHEET_ID ? "ORDER BY status ASC, updated DESC" : MY_JQL);
+const TEAM_PRESETS = [
+  { label: "Scheduling", project: "SB" },
+  { label: "HRM", project: "HRM" },
+  { label: "Payroll", project: "PAY" },
+];
+const buildJql = (proj) => `project = "${proj}" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC`;
+const DEFAULT_JQL = URL_PARAMS.get("jql") || buildJql(TEAM_PRESETS[0].project);
 
 // Extract plain text from Jira ADF (Atlassian Document Format) description
 function extractAdfText(node) {
@@ -787,6 +792,15 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <select
+              onChange={e => { if (e.target.value) { setJql(buildJql(e.target.value)); } }}
+              defaultValue=""
+              style={{ border: "1px solid #e5e7eb", borderRadius: 20, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#6b7280", background: "white", outline: "none", cursor: "pointer" }}>
+              <option value="" disabled>Team…</option>
+              {TEAM_PRESETS.map(t => (
+                <option key={t.project} value={t.project}>{t.label}</option>
+              ))}
+            </select>
             <button onClick={() => setShowJql(v => !v)}
               style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "#6b7280", transition: "all 0.15s" }}>
               {showJql ? "Hide JQL" : "Edit JQL"}
