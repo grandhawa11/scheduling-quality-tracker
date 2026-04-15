@@ -173,6 +173,8 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
         boxShadow: active ? `0 0 0 3px ${color}22, 0 4px 12px rgba(0,0,0,0.06)` : "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)",
         overflow: "hidden",
         position: "relative",
+        flex: 1,
+        minWidth: 0,
       }}
     >
       {/* Accent bar */}
@@ -181,7 +183,7 @@ function BucketCard({ label, color, total, done, inProgress, onClick, active, pr
       <div style={{ padding: "16px 18px" }}>
         {/* Top row: label + count */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", lineHeight: 1.4, maxWidth: "76%", paddingRight: 4 }}>{label}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b", lineHeight: 1.4, maxWidth: "76%", paddingRight: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
           <div style={{ fontSize: 24, fontWeight: 800, color, flexShrink: 0, letterSpacing: "-0.02em" }}>{total}</div>
         </div>
 
@@ -1063,11 +1065,12 @@ export default function App() {
                 </button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
+            <div style={{ display: "flex", gap: 16, overflow: "hidden" }}>
               {totalProjectFiltered > 0 && (
                 <div style={{
                   background: "white", border: "2px solid #7C3AED", borderRadius: 14, padding: "18px 20px",
                   boxShadow: "0 1px 3px rgba(124,58,237,0.1)", display: "flex", flexDirection: "column", gap: 12,
+                  flex: 1, minWidth: 0,
                 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#7C3AED" }}>Quality Ratio</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
