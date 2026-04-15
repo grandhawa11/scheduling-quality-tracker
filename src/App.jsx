@@ -794,12 +794,8 @@ export default function App() {
         t.bucket = getBucket(t, rules);
         return t;
       });
-      const fresh = new Set(parsed.filter(t => !prevKeys.has(t.key)).map(t => t.key));
-      setNewKeys(fresh);
-      setTimeout(() => setNewKeys(new Set()), 10000);
-      setTickets(parsed);
-
-      // Fetch total project tickets for quality ratio
+      // Fetch total project tickets for quality ratio (before setting state)
+      let allParsed = [];
       const projMatch = jql.match(/project\s*=\s*"?([A-Z0-9]+)"?/i);
       if (projMatch) {
         try {
@@ -810,16 +806,21 @@ export default function App() {
           const allRes = await fetch(`/api/jira?${allParams}`);
           if (allRes.ok) {
             const allData = await allRes.json();
-            const allParsed = (allData.issues || []).map(i => ({
+            allParsed = (allData.issues || []).map(i => ({
               updated: i.fields.updated,
               duedate: i.fields.duedate || null,
               targetCompletion: parseTextDate(i.fields.customfield_10252),
             }));
-            setAllProjectTickets(allParsed);
           }
         } catch { /* silent — ratio is optional */ }
       }
 
+      // Set all state together to avoid flash
+      const fresh = new Set(parsed.filter(t => !prevKeys.has(t.key)).map(t => t.key));
+      setNewKeys(fresh);
+      setTimeout(() => setNewKeys(new Set()), 10000);
+      setTickets(parsed);
+      setAllProjectTickets(allParsed);
       setLastFetched(new Date());
     } catch (err) {
       setError(err.message);
@@ -1062,7 +1063,7 @@ export default function App() {
                 </button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {totalProjectFiltered > 0 && (
                 <div style={{
                   background: "white", border: "2px solid #7C3AED", borderRadius: 14, padding: "18px 20px",
