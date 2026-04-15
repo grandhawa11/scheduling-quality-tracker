@@ -668,6 +668,7 @@ function generateWeeklyInsights(dateFiltered, bucketStats, period, mode = "succi
 
 export default function App() {
   const [tickets, setTickets]           = useState([]);
+  const [allProjectTickets, setAllProjectTickets] = useState([]);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState(null);
   const [lastFetched, setLastFetched]   = useState(null);
@@ -797,6 +798,28 @@ export default function App() {
       setNewKeys(fresh);
       setTimeout(() => setNewKeys(new Set()), 10000);
       setTickets(parsed);
+
+      // Fetch total project tickets for quality ratio
+      const projMatch = jql.match(/project\s*=\s*"?([A-Z0-9]+)"?/i);
+      if (projMatch) {
+        try {
+          const allParams = new URLSearchParams({
+            jql: `project = "${projMatch[1]}" ORDER BY updated DESC`,
+            fields: "updated,duedate,customfield_10252",
+          });
+          const allRes = await fetch(`/api/jira?${allParams}`);
+          if (allRes.ok) {
+            const allData = await allRes.json();
+            const allParsed = (allData.issues || []).map(i => ({
+              updated: i.fields.updated,
+              duedate: i.fields.duedate || null,
+              targetCompletion: parseTextDate(i.fields.customfield_10252),
+            }));
+            setAllProjectTickets(allParsed);
+          }
+        } catch { /* silent — ratio is optional */ }
+      }
+
       setLastFetched(new Date());
     } catch (err) {
       setError(err.message);
@@ -818,6 +841,20 @@ export default function App() {
       return updatedMatch || dueMatch || targetMatch;
     });
   }, [tickets, periodKey]);
+
+  const totalProjectFiltered = useMemo(() => {
+    if (!allProjectTickets.length) return 0;
+    if (!period || periodKey === "all") return allProjectTickets.length;
+    return allProjectTickets.filter(t => {
+      const updatedYM = t.updated?.slice(0, 7);
+      const dueYM = t.duedate?.slice(0, 7);
+      const targetYM = t.targetCompletion;
+      const updatedMatch = updatedYM && updatedYM >= period.startYM && updatedYM <= period.endYM;
+      const dueMatch = dueYM && dueYM >= period.startYM && dueYM <= period.endYM;
+      const targetMatch = targetYM && targetYM >= period.startYM && targetYM <= period.endYM;
+      return updatedMatch || dueMatch || targetMatch;
+    }).length;
+  }, [allProjectTickets, periodKey]);
 
   const bucketStats = bucketRules.map(b => {
     const items = dateFiltered.filter(t => t.bucket === b.label);
@@ -1026,6 +1063,29 @@ export default function App() {
               )}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 16 }}>
+              {totalProjectFiltered > 0 && (
+                <div style={{
+                  background: "white", border: "2px solid #7C3AED", borderRadius: 14, padding: "18px 20px",
+                  boxShadow: "0 1px 3px rgba(124,58,237,0.1)", display: "flex", flexDirection: "column", gap: 12,
+                }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#7C3AED" }}>Quality Ratio</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <span style={{ fontSize: 32, fontWeight: 800, color: "#1e1b4b", lineHeight: 1 }}>
+                      {totalProjectFiltered > 0 ? Math.round((dateFiltered.length / totalProjectFiltered) * 100) : 0}%
+                    </span>
+                    <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 500 }}>
+                      {dateFiltered.length} / {totalProjectFiltered}
+                    </span>
+                  </div>
+                  <div style={{ background: "#f1f5f9", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                    <div style={{
+                      background: "#7C3AED", height: "100%", borderRadius: 4, transition: "width 0.3s",
+                      width: `${totalProjectFiltered > 0 ? Math.round((dateFiltered.length / totalProjectFiltered) * 100) : 0}%`,
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af" }}>quality tickets out of all project tickets</div>
+                </div>
+              )}
               {bucketStats.map(b => (
                 <BucketCard
                   key={b.label}
