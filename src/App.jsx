@@ -6,8 +6,8 @@ const JIRA_TOKEN    = import.meta.env.VITE_JIRA_API_TOKEN || "";
 
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const SHEET_ID   = URL_PARAMS.get("sheet") || "";
-const DEFAULT_JQL = URL_PARAMS.get("jql") ||
-  'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
+const MY_JQL     = 'project = "SB" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC';
+const DEFAULT_JQL = URL_PARAMS.get("jql") || (SHEET_ID ? "ORDER BY status ASC, updated DESC" : MY_JQL);
 
 // Extract plain text from Jira ADF (Atlassian Document Format) description
 function extractAdfText(node) {
