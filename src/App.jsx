@@ -14,6 +14,36 @@ const TEAM_PRESETS = [
 const buildJql = (proj) => `project = "${proj}" AND (labels = "Quality" OR Allocation = "Quality Improvements" OR summary ~ "[Quality]") ORDER BY status ASC, updated DESC`;
 const DEFAULT_JQL = URL_PARAMS.get("jql") || buildJql(TEAM_PRESETS[0].project);
 
+// Parse a free-text date string into YYYY-MM format (or null)
+// Handles: "06/01/2026", "June 1, 2026", "June 1st, 2026", "Jun 2026", "2026-06-01"
+const MONTH_MAP = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
+  january:0,february:1,march:2,april:3,june:5,july:6,august:7,september:8,october:9,november:10,december:11 };
+
+function parseTextDate(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  const s = raw.trim();
+
+  // ISO: 2026-06-01
+  const iso = s.match(/^(\d{4})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}`;
+
+  // m/d/y or m-d-y: 06/01/2026, 6/1/2026
+  const mdy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (mdy) {
+    const m = parseInt(mdy[1], 10);
+    if (m >= 1 && m <= 12) return `${mdy[3]}-${String(m).padStart(2, "0")}`;
+  }
+
+  // "June 1, 2026", "June 1st 2026", "Jun 2026"
+  const named = s.match(/^([a-z]+)\s*\d{0,2}[a-z]*[,\s]*(\d{4})$/i);
+  if (named) {
+    const m = MONTH_MAP[named[1].toLowerCase()];
+    if (m !== undefined) return `${named[2]}-${String(m + 1).padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
 // Extract plain text from Jira ADF (Atlassian Document Format) description
 function extractAdfText(node) {
   if (!node) return "";
@@ -683,7 +713,7 @@ export default function App() {
       const prevKeys = new Set(tickets.map(t => t.key));
       const params   = new URLSearchParams({
         jql,
-        fields: "summary,status,priority,assignee,updated,duedate,customfield_10005,issuetype,parent,description",
+        fields: "summary,status,priority,assignee,updated,duedate,customfield_10252,customfield_10005,issuetype,parent,description",
       });
       const res = await fetch(`/api/jira?${params}`);
       if (!res.ok) {
@@ -705,6 +735,7 @@ export default function App() {
           epic:       issue.fields.customfield_10005 || null,
           updated:    issue.fields.updated,
           duedate:    issue.fields.duedate || null,
+          targetCompletion: parseTextDate(issue.fields.customfield_10252),
           issueType:  typeName,
           parentKey:  isEpic ? issue.key : (issue.fields.parent?.key || null),
           parentName: isEpic ? issue.fields.summary : (issue.fields.parent?.fields?.summary || null),
@@ -730,9 +761,11 @@ export default function App() {
     return tickets.filter(t => {
       const updatedYM = t.updated?.slice(0, 7);
       const dueYM = t.duedate?.slice(0, 7);
+      const targetYM = t.targetCompletion; // already YYYY-MM from parseTextDate
       const updatedMatch = updatedYM && updatedYM >= period.startYM && updatedYM <= period.endYM;
       const dueMatch = dueYM && dueYM >= period.startYM && dueYM <= period.endYM;
-      return updatedMatch || dueMatch;
+      const targetMatch = targetYM && targetYM >= period.startYM && targetYM <= period.endYM;
+      return updatedMatch || dueMatch || targetMatch;
     });
   }, [tickets, periodKey]);
 
