@@ -103,16 +103,21 @@ function buildPeriodOptions() {
     const key = ym(y, m);
     opts.push({ key, label: `${MONTH_NAMES[m]}${y !== nowY ? " " + y : ""}`, startYM: key, endYM: key, future: true });
   }
-  // Quarters
+  // Quarters (current year + last year, including quarters that overlap with future)
+  const currentYM = ym(nowY, nowM);
   for (const y of [nowY, nowY - 1]) {
     for (let q = 3; q >= 0; q--) {
       const sm = q * 3;
+      const endMonth = sm + 2;
+      // Skip if the entire quarter is in the future
       if (new Date(y, sm, 1) > now) continue;
+      const qEndYM = ym(y, endMonth);
       opts.push({
         key: `Q${q + 1}-${y}`,
-        label: `Q${q + 1} ${y} (${MONTH_NAMES[sm]}–${MONTH_NAMES[sm + 2]})`,
+        label: `Q${q + 1} ${y} (${MONTH_NAMES[sm]}–${MONTH_NAMES[endMonth]})`,
         startYM: ym(y, sm),
-        endYM: ym(y, sm + 2),
+        endYM: qEndYM,
+        future: qEndYM > currentYM, // quarter extends into future months
       });
     }
   }
