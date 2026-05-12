@@ -683,6 +683,8 @@ export default function App() {
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterBucket, setFilterBucket] = useState(null);
   const [search, setSearch]             = useState("");
+  const [filterAssignee, setFilterAssignee] = useState("All");
+  const [filterType, setFilterType]     = useState("All");
   const [newKeys, setNewKeys]           = useState(new Set());
   const [showJql, setShowJql]           = useState(false);
   const [periodKey, setPeriodKey]       = useState(DEFAULT_PERIOD);
@@ -882,6 +884,8 @@ export default function App() {
   }
 
   const statuses     = ["All", ...new Set(dateFiltered.map(t => t.status).filter(Boolean))];
+  const assignees    = ["All", ...new Set(dateFiltered.map(t => t.assignee).filter(Boolean)).values()].sort();
+  const issueTypes   = ["All", ...new Set(dateFiltered.map(t => t.issueType).filter(Boolean)).values()].sort();
   const doneCount    = dateFiltered.filter(t => t.status === "Done").length;
   const activeCount  = dateFiltered.filter(t => ["In Progress","In Review"].includes(t.status)).length;
   const blockedCount = dateFiltered.filter(t => t.status === "Investigation Required").length;
@@ -891,10 +895,12 @@ export default function App() {
   const filtered = dateFiltered.filter(t => {
     const matchStatus = filterStatus === "All" || t.status === filterStatus;
     const matchBucket = !filterBucket || t.bucket === filterBucket;
+    const matchAssignee = filterAssignee === "All" || t.assignee === filterAssignee;
+    const matchType = filterType === "All" || t.issueType === filterType;
     const matchSearch = !search ||
       t.summary.toLowerCase().includes(search.toLowerCase()) ||
       t.key.toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchBucket && matchSearch;
+    return matchStatus && matchBucket && matchSearch && matchAssignee && matchType;
   });
 
   const handleSort = (colId) => {
@@ -1253,6 +1259,14 @@ export default function App() {
                   style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 12px", fontSize: 13, outline: "none", background: "white", color: "#1e293b" }}>
                   {statuses.map(s => <option key={s}>{s}</option>)}
                 </select>
+                <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 12px", fontSize: 13, outline: "none", background: "white", color: "#1e293b" }}>
+                  {assignees.map(a => <option key={a} value={a}>{a === "All" ? "All Assignees" : a}</option>)}
+                </select>
+                <select value={filterType} onChange={e => setFilterType(e.target.value)}
+                  style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 12px", fontSize: 13, outline: "none", background: "white", color: "#1e293b" }}>
+                  {issueTypes.map(t => <option key={t} value={t}>{t === "All" ? "All Types" : t}</option>)}
+                </select>
                 <div ref={colMenuRef} style={{ position: "relative" }}>
                   <button onClick={() => setShowColMenu(v => !v)}
                     style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: "8px 14px", fontSize: 13, fontWeight: 600, background: showColMenu ? "#f1f5f9" : "white", color: "#64748b", cursor: "pointer", transition: "all 0.15s" }}>
@@ -1288,27 +1302,33 @@ export default function App() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#f9f7fc", borderBottom: "1px solid #ede9f3" }}>
-                    {visibleColumns.map(col => (
-                      <th key={col.id}
-                        draggable
-                        onDragStart={() => handleDragStart(col.id)}
-                        onDragOver={(e) => handleDragOver(e, col.id)}
-                        onDragEnd={handleDragEnd}
-                        onClick={() => handleSort(col.id)}
-                        style={{
-                          padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 700,
-                          color: sortCol === col.id ? "#7C3AED" : "#64748b", letterSpacing: "0.05em", whiteSpace: "nowrap",
-                          cursor: "pointer", userSelect: "none", textTransform: "uppercase",
-                          background: dragCol === col.id ? "#e2e8f0" : "transparent",
-                          transition: "all 0.15s",
-                        }}>
-                        <span style={{ opacity: 0.3, marginRight: 5, fontSize: 11 }}>⠿</span>
-                        {col.label}
-                        <span style={{ marginLeft: 4, fontSize: 10, opacity: sortCol === col.id ? 1 : 0.3 }}>
-                          {sortCol === col.id ? (sortDir === "asc" ? "▲" : "▼") : "▲▼"}
-                        </span>
-                      </th>
-                    ))}
+                    {visibleColumns.map(col => {
+                      const sortable = col.id !== "area";
+                      const isActive = sortCol === col.id;
+                      return (
+                        <th key={col.id}
+                          draggable
+                          onDragStart={() => handleDragStart(col.id)}
+                          onDragOver={(e) => handleDragOver(e, col.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => sortable && handleSort(col.id)}
+                          style={{
+                            padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 700,
+                            color: isActive ? "#7C3AED" : "#64748b", letterSpacing: "0.05em", whiteSpace: "nowrap",
+                            cursor: sortable ? "pointer" : "grab", userSelect: "none", textTransform: "uppercase",
+                            background: dragCol === col.id ? "#e2e8f0" : "transparent",
+                            transition: "all 0.15s",
+                          }}>
+                          <span style={{ opacity: 0.3, marginRight: 5, fontSize: 11 }}>⠿</span>
+                          {col.label}
+                          {sortable && (
+                            <span style={{ marginLeft: 4, fontSize: 10, opacity: isActive ? 1 : 0 }}>
+                              {isActive && sortDir === "asc" ? "▲" : "▼"}
+                            </span>
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
