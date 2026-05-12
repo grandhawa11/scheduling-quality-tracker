@@ -697,6 +697,8 @@ export default function App() {
   const [periodsExpanded, setPeriodsExpanded] = useState(false);
   const [summaryMode, setSummaryMode]         = useState("succinct");
   const [dragCol, setDragCol]           = useState(null);
+  const [sortCol, setSortCol]           = useState(null);
+  const [sortDir, setSortDir]           = useState("asc");
   const colMenuRef = useRef(null);
 
   useEffect(() => {
@@ -894,6 +896,41 @@ export default function App() {
       t.key.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchBucket && matchSearch;
   });
+
+  const handleSort = (colId) => {
+    if (sortCol === colId) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortCol(colId);
+      setSortDir("asc");
+    }
+  };
+
+  const sortValue = (t, colId) => {
+    switch (colId) {
+      case "ticket": return t.key;
+      case "type": return t.issueType;
+      case "summary": return t.summary;
+      case "parent": return t.parentName || "";
+      case "area": return t.bucket || "";
+      case "status": return t.status;
+      case "priority": return t.priority;
+      case "assignee": return t.assignee || "";
+      case "updated": return t.updated || "";
+      default: return "";
+    }
+  };
+
+  const sorted = useMemo(() => {
+    if (!sortCol) return filtered;
+    return [...filtered].sort((a, b) => {
+      const aVal = sortValue(a, sortCol).toLowerCase();
+      const bVal = sortValue(b, sortCol).toLowerCase();
+      if (aVal < bVal) return sortDir === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortCol, sortDir]);
 
   const missingCreds = !JIRA_EMAIL || !JIRA_TOKEN;
 
@@ -1257,22 +1294,27 @@ export default function App() {
                         onDragStart={() => handleDragStart(col.id)}
                         onDragOver={(e) => handleDragOver(e, col.id)}
                         onDragEnd={handleDragEnd}
+                        onClick={() => handleSort(col.id)}
                         style={{
                           padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 700,
-                          color: "#64748b", letterSpacing: "0.05em", whiteSpace: "nowrap",
-                          cursor: "grab", userSelect: "none", textTransform: "uppercase",
+                          color: sortCol === col.id ? "#7C3AED" : "#64748b", letterSpacing: "0.05em", whiteSpace: "nowrap",
+                          cursor: "pointer", userSelect: "none", textTransform: "uppercase",
                           background: dragCol === col.id ? "#e2e8f0" : "transparent",
-                          transition: "background 0.15s",
+                          transition: "all 0.15s",
                         }}>
-                        <span style={{ opacity: 0.3, marginRight: 5, fontSize: 11 }}>⠿</span>{col.label}
+                        <span style={{ opacity: 0.3, marginRight: 5, fontSize: 11 }}>⠿</span>
+                        {col.label}
+                        <span style={{ marginLeft: 4, fontSize: 10, opacity: sortCol === col.id ? 1 : 0.3 }}>
+                          {sortCol === col.id ? (sortDir === "asc" ? "▲" : "▼") : "▲▼"}
+                        </span>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0
+                  {sorted.length === 0
                     ? <tr><td colSpan={visibleColumns.length} style={{ padding: 48, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>No tickets match your filters</td></tr>
-                    : filtered.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} columns={visibleColumns} />)
+                    : sorted.map(t => <TicketRow key={t.key} ticket={t} isNew={newKeys.has(t.key)} bucketRules={bucketRules} columns={visibleColumns} />)
                   }
                 </tbody>
               </table>
